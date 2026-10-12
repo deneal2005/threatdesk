@@ -30,6 +30,35 @@ from threatdesk.lookalike_ml import (
     find_lookalike,
 )
 
+__all__ = [
+    "CATEGORY_ADDED_TERMS",
+    "CATEGORY_DELETION",
+    "CATEGORY_HOMOGLYPH",
+    "CATEGORY_INSERTION",
+    "CATEGORY_SIMILARITY",
+    "CATEGORY_SPACING",
+    "CATEGORY_SUBSTITUTION",
+    "CATEGORY_SWAP",
+    "LABELS",
+    "LookalikeMatch",
+    "compare_lookalike",
+    "find_lookalike",
+    "DEFAULT_THRESHOLD",
+    "WEAK_SCORE",
+    "FULL_NAME_LEN",
+    "FULL_NAME_SCORE",
+    "MIN_TYPO_LEN",
+    "Match",
+    "basic",
+    "skeleton",
+    "substitutions",
+    "compare",
+    "best_match",
+    "title_parts",
+    "best_title_match",
+    "is_platform_id",
+]
+
 DEFAULT_THRESHOLD = 80          # a match at or above this score is a look-alike (brand settings can change it)
 WEAK_SCORE = 60                 # "contains the brand name among other words": recorded, never scored
 FULL_NAME_LEN = 7               # "acmebank" inside "Acme Bank Wallet Tools" counts; "acme" inside "ACME Anvil" doesn't
