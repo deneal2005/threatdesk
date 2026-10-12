@@ -32,15 +32,15 @@ SEVERITY_META = {
         "explanation": "Immediate threat: verified malicious activity, credential theft, or active phishing.",
     },
     "High": {
-        "label": "High Risk", "class": "high", "icon": "▲",
+        "label": "High", "class": "high", "icon": "▲",
         "explanation": "High risk: strong look-alike impersonation or multiple deceptive signals detected.",
     },
     "Medium": {
-        "label": "Medium Risk", "class": "medium", "icon": "◆",
+        "label": "Medium", "class": "medium", "icon": "◆",
         "explanation": "Suspicious indicators found: warrants human review before action.",
     },
     "Low": {
-        "label": "Low Risk", "class": "low", "icon": "●",
+        "label": "Low", "class": "low", "icon": "●",
         "explanation": "Minor technical anomalies; low probability of immediate danger.",
     },
     "Informational": {

@@ -6,7 +6,7 @@
 
 <header class="page-head">
   <div class="titles">
-    <span class="eyebrow">Findings Management</span>
+    <span class="eyebrow">Findings</span>
     <h1>Triage Queue</h1>
     <p class="lede">Review detected digital assets, verify threat evidence, and execute defensive actions.</p>
   </div>
@@ -107,9 +107,8 @@
     </details>
   </div>
 </div>
-
 {% if rows %}
-<form method="post" action="/findings/bulk" class="bulk-form">
+<form method="post" action="/findings/bulk" class="bulk-form" data-confirm="Mark the selected findings as false positives?">
   {{ m.csrf() }}
   <div class="table-wrap">
     <table>
@@ -120,8 +119,8 @@
           <th class="tight">Score</th>
           <th>Finding &amp; Detection Summary</th>
           <th class="hide-sm">Status</th>
-          <th class="hide-sm">Brand</th>
-          <th class="tight hide-sm">Last seen</th>
+          <th class="hide-sm hide-md">Brand</th>
+          <th class="tight hide-sm hide-md">Last seen</th>
         </tr>
       </thead>
       <tbody>
@@ -150,8 +149,8 @@
           <td class="hide-sm">
             {{ m.status(f.status) }}
           </td>
-          <td class="hide-sm">{{ names.get(f.brand_id, "-") }}</td>
-          <td class="tight faint hide-sm" title="{{ f.last_seen|dt }}">{{ f.last_seen|ago }}</td>
+          <td class="hide-sm hide-md nowrap">{{ names.get(f.brand_id, "-") }}</td>
+          <td class="tight faint hide-sm hide-md" title="{{ f.last_seen|dt }}">{{ f.last_seen|ago }}</td>
         </tr>
       {% endfor %}
       </tbody>
