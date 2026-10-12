@@ -99,11 +99,13 @@ kbd, .kbd-hint { font: 500 10.5px/1 var(--f-mono); color: var(--graphite); backg
 .wordmark { display: inline-flex; align-items: center; gap: 10px; color: var(--ink); text-decoration: none; }
 .wordmark:hover { text-decoration: none; color: var(--ink); }
 .wordmark b { font: 800 17px/1 var(--f-ui); font-stretch: 125%; letter-spacing: -.015em; }
-.wordmark .mark { width: 22px; height: 22px; flex: none; }
+.wordmark .mark { width: 24px; height: 24px; flex: none; }
 .rail-nav .wordmark { color: var(--on-rail); }
 .rail-nav .wordmark:hover { color: #fff; }
-.rail-nav .wordmark .mark path:first-child { fill: #162C21; stroke: var(--jade-glow); stroke-width: .8; }
-.rail-nav .wordmark .mark path:last-child { stroke: var(--on-rail); }
+/* On the rail the mark inverts: a paper shield with ink brackets, so it reads against the dark ground. */
+.rail-nav .mark-shield { fill: var(--on-rail); }
+.rail-nav .mark-brackets { stroke: var(--rail); }
+.rail-nav .mark-dot { fill: var(--jade); }
 .drawer-close, .drawer-toggle { all: unset; box-sizing: border-box; display: none; align-items: center; justify-content: center; cursor: pointer; }
 .drawer-close { width: 32px; height: 32px; border-radius: var(--r); color: var(--on-rail-2); }
 .drawer-close:hover { color: #fff; background: var(--rail-3); }
@@ -166,10 +168,12 @@ kbd, .kbd-hint { font: 500 10.5px/1 var(--f-mono); color: var(--graphite); backg
 }
 .topbar-left { display: flex; align-items: center; gap: var(--s3); min-width: 0; }
 .topbar-context { display: flex; align-items: center; gap: 8px; min-width: 0; white-space: nowrap; }
-.context-tag { font: 600 10px/1 var(--f-mono); letter-spacing: .1em; color: var(--mute); text-transform: uppercase; }
+.context-tag { font: 600 10px/1 var(--f-mono); letter-spacing: .1em; color: var(--mute); text-transform: uppercase;
+  max-width: 22ch; overflow: hidden; text-overflow: ellipsis; }
 .context-sep { color: var(--rule-3); }
 .context-name { font: 700 13.5px/1 var(--f-ui); font-stretch: 112%; color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
 .topbar-search { flex: 1; max-width: 480px; }
+.topbar-search.is-redundant { visibility: hidden; }
 .topbar-search-form { width: 100%; margin: 0; }
 .topbar-search-wrap { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 8px 0 12px;
   background: var(--white); border: 1px solid var(--rule); border-radius: var(--r);

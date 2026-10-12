@@ -6,7 +6,7 @@
 
 <header class="page-head">
   <div class="titles">
-    <span class="eyebrow">Findings Management</span>
+    <span class="eyebrow">Findings</span>
     <h1>Triage Queue</h1>
     <p class="lede">Review detected digital assets, verify threat evidence, and execute defensive actions.</p>
   </div>
@@ -150,7 +150,7 @@
           <td class="hide-sm">
             {{ m.status(f.status) }}
           </td>
-          <td class="hide-sm hide-md">{{ names.get(f.brand_id, "-") }}</td>
+          <td class="hide-sm hide-md nowrap">{{ names.get(f.brand_id, "-") }}</td>
           <td class="tight faint hide-sm hide-md" title="{{ f.last_seen|dt }}">{{ f.last_seen|ago }}</td>
         </tr>
       {% endfor %}

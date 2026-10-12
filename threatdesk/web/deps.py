@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from threatdesk.db import get_db
-from threatdesk.models import Finding, Notification, User
+from threatdesk.models import Finding, Notification, Org, User
 from threatdesk.security import CSRF_COOKIE, SESSION_COOKIE, csrf_valid, read_session
 
 
@@ -26,6 +26,7 @@ def current_user(request: Request, db: Session = Depends(get_db)) -> User:
     if user is None or user.org_id != int(data["oid"]):
         raise LoginRequired()
     request.state.user = user
+    request.state.org_name = db.scalar(select(Org.name).where(Org.id == user.org_id)) or ""
     request.state.unread = db.scalar(select(func.count(Notification.id)).where(
         Notification.org_id == user.org_id, Notification.read.is_(False))) or 0
     request.state.new_count = db.scalar(select(func.count(Finding.id)).where(

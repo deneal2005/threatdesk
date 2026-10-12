@@ -22,8 +22,9 @@
     <div class="defanged small">{{ f.url|defang }}</div>
   {% endif %}
 
+  {# One statement of risk: the verdict already names High/Medium, so a badge beside it could only disagree. #}
   <div class="verdict-line">
-    {{ m.sev(f.severity, f.score) }}
+    {% if vc not in ("high", "medium") %}{{ m.sev(f.severity, f.score) }}{% endif %}
     <span class="verdict verdict-{{ vc }}">{{ f.verdict }}</span>
     {% if vc != "excluded" %}
       <span class="score-big"><span class="num">{{ f.score }}</span><span class="faint">/100</span></span>

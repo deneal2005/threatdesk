@@ -6,10 +6,10 @@
 {# --- Page Introduction --- #}
 <header class="page-head dash-head">
   <div class="titles">
-    <span class="eyebrow">Digital Safety Dashboard · ThreatDesk monitors the internet to protect your organization</span>
+    <span class="eyebrow">Digital Safety Dashboard</span>
     <h1>Digital Risk Overview</h1>
     <p class="lede">
-      Understand current threats, review important findings, and coordinate the next steps.
+      ThreatDesk monitors the internet to protect your organization. Review what it found and coordinate the next steps.
     </p>
   </div>
   {% if brands %}
@@ -17,7 +17,7 @@
     <form method="post" action="/brands/{{ brands[0].id }}/scan" class="quick-scan-form">
       {{ m.csrf() }}
       <button class="btn" type="submit" title="Scan registries, certificate logs, and app stores for {{ brands[0].name }}">
-        {{ m.icon("scan") }} Run Discovery Scan ({{ brands[0].name }})
+        {{ m.icon("scan") }} Scan {{ brands[0].name }} now
       </button>
     </form>
     {% if brands|length > 1 %}<a class="btn ghost" href="/brands">All {{ brands|length }} brands</a>{% endif %}

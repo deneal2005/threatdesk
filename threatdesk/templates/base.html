@@ -7,6 +7,7 @@
 <meta name="htmx-config" content='{"includeIndicatorStyles": false, "allowEval": false, "allowScriptTags": false}'>
 <meta name="color-scheme" content="light">
 <title>{% block title %}ThreatDesk{% endblock %}</title>
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="/static/app.css?v={{ asset_version('app.css') }}">
@@ -135,13 +136,14 @@
           {{ m.icon("menu") }}
         </button>
         <div class="topbar-context">
-          <span class="context-tag">Workspace</span>
+          <span class="context-tag" title="Organisation">{{ org_name or "Workspace" }}</span>
           <span class="context-sep" aria-hidden="true">/</span>
           <span class="context-name">{{ section }}</span>
         </div>
       </div>
 
-      <div class="topbar-search">
+      {# The findings list has its own search with filters; a second box there only competes with it. #}
+      <div class="topbar-search{% if cur_path == '/findings' %} is-redundant{% endif %}">
         <form method="get" action="/findings" class="topbar-search-form" role="search">
           <label for="global-search" class="sr">Search findings</label>
           <div class="topbar-search-wrap">
@@ -157,9 +159,11 @@
           {{ m.icon("alerts") }}
           {% if unread %}<span class="topbar-dot" aria-label="{{ unread }} unread alerts"></span>{% endif %}
         </a>
-        <a href="/investigate" class="btn quiet sm topbar-investigate" title="Instant URL investigation">
+        {% if not cur_path.startswith("/investigate") %}
+        <a href="/investigate" class="btn quiet sm topbar-investigate" title="Check a suspicious link, app or profile">
           {{ m.icon("investigate") }}<span>Investigate</span>
         </a>
+        {% endif %}
         <a href="/settings" class="topbar-avatar" title="{{ user.email }} · Organization Settings">
           <span>{{ user.email[0]|upper }}</span>
         </a>

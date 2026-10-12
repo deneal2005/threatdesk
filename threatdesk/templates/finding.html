@@ -30,7 +30,7 @@
         <fieldset class="field">
           <legend class="label">Move to</legend>
           <div class="choices">
-            {% for to in moves %}<label class="choice" title="{{ STATUS_HELP.get(to, '') }}"><input type="radio" name="to" value="{{ to }}" {% if loop.first %}checked{% endif %}><span>{{ to|status }}</span></label>{% endfor %}
+            {% for to in moves %}<label class="choice" title="{{ STATUS_HELP.get(to, '') }}"><input type="radio" name="to" value="{{ to }}" required><span>{{ to|status }}</span></label>{% endfor %}
           </div>
         </fieldset>
         <div class="field"><label for="reason">Reason</label>

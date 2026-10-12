@@ -116,6 +116,7 @@ def render(request: Request, name: str, ctx: dict | None = None, status_code: in
         "msg": MESSAGES.get(request.query_params.get("m", "")),
         "unread": getattr(request.state, "unread", 0),
         "new_count": getattr(request.state, "new_count", 0),
+        "org_name": getattr(request.state, "org_name", ""),
     }
     data.update(ctx or {})
     return templates.TemplateResponse(request, name, data, status_code=status_code)
