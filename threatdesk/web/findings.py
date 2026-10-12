@@ -1,6 +1,8 @@
 """Findings list (filters), detail, save, case workflow, bulk false positive, user-supplied profile details."""
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy import func, select
@@ -27,6 +29,22 @@ def _int(v: str | None) -> int | None:
     return int(v) if v and str(v).strip().isdigit() else None
 
 
+def _epoch(d: datetime) -> int:
+    return int(d.replace(tzinfo=UTC).timestamp())
+
+
+def _since_cutoff(raw: str, last_visit: datetime | None) -> datetime | None:
+    """"since=<unix seconds>" is the cut-off the filter form was rendered with; "since=1" means the stored last visit.
+
+    Every visit to the list moves the stored last visit to "now", so the form has to carry the earlier value:
+    otherwise applying the filter would compare against the page load it was submitted from and show nothing."""
+    if raw == "1":
+        return last_visit
+    if raw.isdigit() and len(raw) <= 12:
+        return datetime.fromtimestamp(int(raw), UTC).replace(tzinfo=None)
+    return None
+
+
 @router.get("/findings")
 def list_findings(request: Request, user: User = Depends(current_user), db: Session = Depends(get_db)):
     p = request.query_params
@@ -35,7 +53,11 @@ def list_findings(request: Request, user: User = Depends(current_user), db: Sess
     if status:
         view = "all"
     brand_id, severity, source = _int(p.get("brand_id")), p.get("severity", ""), p.get("source", "")
-    since, reported = p.get("since") == "1", p.get("reported") == "1"
+    reported = p.get("reported") == "1"
+    last_visit = user.last_findings_visit
+    cutoff = _since_cutoff(p.get("since", ""), last_visit)
+    since = cutoff is not None
+    since_at = cutoff or last_visit         # shown next to the checkbox and carried in links
     query_str = p.get("q", "").strip()
     base = scoped(Finding, user.org_id).where(Finding.in_triage.is_(True))
     if brand_id:
@@ -44,7 +66,9 @@ def list_findings(request: Request, user: User = Depends(current_user), db: Sess
     sev_norm = "High" if severity.lower() == "critical" else sev_raw
     if sev_norm in ("High", "Medium", "Low"):
         base = base.where(Finding.severity == sev_norm)
-    if source:
+    if source == "discovery":                  # every automated scan source ("discovery:web_search", ...)
+        base = base.where(Finding.source.like("discovery:%"))
+    elif source:
         base = base.where(Finding.source == source)
     if reported:
         base = base.where(Finding.is_user_submitted.is_(True))
@@ -52,9 +76,8 @@ def list_findings(request: Request, user: User = Depends(current_user), db: Sess
         base = base.where(
             Finding.display_name.ilike(f"%{query_str}%") | Finding.url.ilike(f"%{query_str}%")
         )
-    last_visit = user.last_findings_visit
-    if since and last_visit:
-        base = base.where(Finding.first_seen > last_visit)
+    if cutoff:
+        base = base.where(Finding.first_seen > cutoff)
     views = {"open": base.where(Finding.status.in_(OPEN)), "new": base.where(Finding.status == "new"), "all": base}
     counts = {k: db.scalar(select(func.count()).select_from(q.subquery())) or 0 for k, q in views.items()}
     page = max(1, _int(p.get("page")) or 1)
@@ -90,7 +113,8 @@ def list_findings(request: Request, user: User = Depends(current_user), db: Sess
     return render(request, "findings.html", {
         "rows": rows, "view": view, "views": VIEWS, "counts": counts, "brands": brands,
         "names": {b.id: b.name for b in brands}, "sources": sources, "brand_id": brand_id, "severity": severity,
-        "status_f": status, "source": source, "since": since, "reported": reported, "last_visit": last_visit,
+        "status_f": status, "source": source, "since": since, "reported": reported,
+        "since_at": since_at, "since_value": _epoch(since_at) if since_at else 1,
         "filtered": filtered, "statuses": list(cases.TRANSITIONS), "tiers": tiers, "tier_f": tier_f,
         "tier_info": TIERS, "query_str": query_str, "page": page, "total_pages": total_pages,
         "page_size": page_size, "total_matching": total_matching, "sort_by": sort_by})

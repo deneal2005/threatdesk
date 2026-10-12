@@ -484,7 +484,7 @@ td.nowrap { white-space: nowrap; }
 .rowcheck, .rowcheck-all { width: 16px; height: 16px; cursor: pointer; vertical-align: middle; }
 
 /* Toolbar, tabs, filters, bulk bar ----------------------------------------------------------------- */
-.toolbar-box { margin-bottom: var(--s4); padding: var(--s3) !important; }
+.toolbar-box { position: relative; z-index: 5; margin-bottom: var(--s4); padding: var(--s3) !important; }
 .toolbar { position: relative; display: flex; justify-content: space-between; align-items: center; gap: var(--s3); flex-wrap: wrap; }
 .toolbar-box .toolbar { margin: 0; }
 .tabs { display: flex; gap: 2px; background: var(--paper-2); padding: 3px; border-radius: 9px; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
@@ -504,7 +504,7 @@ details.disclose > summary { list-style: none; cursor: pointer; }
 details.disclose > summary::-webkit-details-marker { display: none; }
 .filter-toggle > summary { list-style: none; }
 .filter-toggle > summary::-webkit-details-marker { display: none; }
-.filter-toggle[open] > summary { background: var(--ink); color: var(--sheet); border-color: var(--ink); }
+.filter-toggle[open] > summary, .filter-toggle[open] > summary.btn:hover { background: var(--ink); color: var(--sheet); border-color: var(--ink); }
 .filter-panel { display: flex; gap: var(--s3); flex-wrap: wrap; align-items: flex-end; padding: var(--s4); margin-bottom: var(--s3); }
 .filter-panel .field { margin: 0; flex: 1 1 150px; }
 .filter-panel .check { flex: 1 1 200px; font-size: 13px; }
@@ -921,7 +921,9 @@ code.copy { display: inline-block; margin-top: 4px; padding: 4px 7px; background
 .recipient.missing { background: var(--sheet-2); border-style: dashed; border-top: 3px solid var(--rule); }
 
 /* Motion --------------------------------------------------------------------------------------------- */
-.main > *, .plain-main > div > * { animation: rise .42s var(--ease-out) both; }
+/* "backwards", not "both": a transform kept after the animation makes each section its own stacking context,
+   so popovers (filter panel, row menus) would paint underneath the sections that follow them. */
+.main > *, .plain-main > div > * { animation: rise .42s var(--ease-out) backwards; }
 .main > :nth-child(2) { animation-delay: .03s; } .main > :nth-child(3) { animation-delay: .06s; }
 .main > :nth-child(4) { animation-delay: .09s; } .main > :nth-child(n+5) { animation-delay: .12s; }
 .fade-in { animation: rise .3s var(--ease-out); }
