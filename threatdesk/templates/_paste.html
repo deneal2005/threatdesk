@@ -1,0 +1,25 @@
+{# Big paste box shared by Overview and Investigate. Expects: brands, placeholder, server_note (bool), value, brand_id #}
+<form method="post" action="/investigate">
+  {{ m.csrf() }}
+  <div class="paste">
+    <label class="sr" for="url">Suspicious link</label>
+    <input id="url" name="url" value="{{ value or '' }}" placeholder="{{ placeholder }}" autocomplete="off" spellcheck="false" required {% if autofocus %}autofocus{% endif %}>
+    <button class="btn">{{ m.icon("investigate") }}Investigate</button>
+  </div>
+  <div class="paste-meta">
+    {% if brands|length == 1 %}
+      <input type="hidden" name="brand_id" value="{{ brands[0].id }}">
+      <span>{{ "Compared with" if server_note else "Checked against" }} {{ brands[0].name }}'s official assets.</span>
+    {% elif brands %}
+      <label>Compare with
+        <select name="brand_id">
+          {% for b in brands %}<option value="{{ b.id }}" {% if brand_id == b.id %}selected{% endif %}>{{ b.name }}</option>{% endfor %}
+          <option value="" {% if brand_id == 0 %}selected{% endif %}>No brand</option>
+        </select>
+      </label>
+    {% else %}
+      <span>Tip: <a href="/brands/new">add your brand</a> so look-alikes of it are recognised.</span>
+    {% endif %}
+    {% if server_note %}<span class="faint">· Opened on our server only, never in your browser · defanged links work too</span>{% endif %}
+  </div>
+</form>

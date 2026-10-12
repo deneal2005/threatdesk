@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block title %}{{ "Brand settings" if brand else "Add a brand" }} · ThreatDesk{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div class="titles">
+    <span class="eyebrow"><a href="/brands">Brands</a>{% if brand %}<span class="sep">/</span><a href="/brands/{{ brand.id }}">{{ brand.name }}</a>{% endif %}</span>
+    <h1>{{ "Brand settings" if brand else "Add a brand" }}</h1>
+    {% if not brand %}<p class="lede">Tell ThreatDesk what is genuine. Anything that resembles these but isn't one of them becomes a lead. You can add and change everything later.</p>{% endif %}
+  </div>
+</header>
+<form method="post" action="{{ '/brands/' ~ brand.id if brand else '/brands' }}" enctype="multipart/form-data">
+  {{ m.csrf() }}
+  <section class="form-section">
+    <div class="about"><h3>The basics</h3><p>{% if brand %}The name people know the brand by.{% else %}A name and your main website are all you need to start.{% endif %}</p></div>
+    <div>
+      <div class="field"><label for="name">Brand name</label>
+        <input id="name" name="name" value="{{ v.name or '' }}" placeholder="Acme Bank" maxlength="80" required {% if not brand %}autofocus{% endif %}></div>
+      {% if not brand %}
+      <div class="field"><label for="websites">Official websites</label>
+        <textarea id="websites" name="websites" rows="3" placeholder="acmebank.com&#10;acmebank.in&#10;careers.acmebank.com" required>{{ v.websites or '' }}</textarea>
+        <span class="hint">One per line. The first is your main website. Subdomains of these are treated as official too.</span></div>
+      {% else %}
+      <p class="small muted">Websites, social accounts and apps are managed on the <a href="/brands/{{ brand.id }}?tab=websites">brand page</a>.</p>
+      {% endif %}
+    </div>
+  </section>
+  {% if not brand %}
+  <section class="form-section">
+    <div class="about"><h3>Accounts and apps <span class="opt">(optional)</span></h3><p>Paste links, one per line; the platform or store is detected for you. Add names, regions and more on the brand page.</p></div>
+    <div>
+      <div class="field"><label for="profiles">Social profile links</label>
+        <textarea id="profiles" name="profiles" rows="4" placeholder="https://www.instagram.com/acmebank&#10;https://www.instagram.com/acmebank.help&#10;https://www.youtube.com/@AcmeBank&#10;https://x.com/AcmeBank">{{ v.profiles or '' }}</textarea>
+        <span class="hint">Any number per platform: Instagram, X, Facebook, YouTube, TikTok, LinkedIn, Telegram, WhatsApp, Threads, Bluesky, Pinterest, Snapchat, Reddit, GitHub.</span></div>
+      <div class="field"><label for="apps">App store links</label>
+        <textarea id="apps" name="apps" rows="3" placeholder="https://play.google.com/store/apps/details?id=com.acme.bank&#10;https://apps.apple.com/app/id1234567890">{{ v.apps or '' }}</textarea>
+        <span class="hint">Google Play or App Store links, or package names and App Store ids.</span></div>
+    </div>
+  </section>
+  {% endif %}
+  <section class="form-section">
+    <div class="about"><h3>Scanning</h3><p>Scans look for look-alike domains, copycat apps and fake accounts, then investigate each lead.</p></div>
+    <div>
+      <div class="field"><label for="keywords">Keywords <span class="opt">(optional)</span></label>
+        <input id="keywords" name="keywords" value="{{ v.keywords or '' }}" placeholder="acme, acmepay">
+        <span class="hint">Other names people use for the brand or its products, separated by commas (up to 15).</span></div>
+      <div class="field"><label for="scan_interval_hours">Scan automatically every</label>
+        <div class="inline-fields"><input class="w-input" id="scan_interval_hours" name="scan_interval_hours" type="number" min="0" max="720" value="{{ v.scan_interval_hours if v.scan_interval_hours is not none else 24 }}"><span class="small muted">hours</span></div>
+        <span class="hint">0 turns automatic scans off.</span></div>
+    </div>
+  </section>
+  <section class="form-section">
+    <div class="about"><h3>Logo <span class="opt">(optional)</span></h3><p>Used to spot apps and profiles that copy your icon.</p></div>
+    <div>
+      {% if brand and brand.logo_phash %}<p><img class="logo-thumb" src="/brands/{{ brand.id }}/logo" alt="Current logo" width="64" height="64"></p>{% endif %}
+      <div class="field"><label for="logo">{{ "Replace the logo" if brand and brand.logo_phash else "Logo image" }}</label>
+        <input id="logo" name="logo" type="file" accept="image/png,image/jpeg">
+        <span class="hint">PNG or JPG, 1 MB or smaller.</span></div>
+    </div>
+  </section>
+  <section class="form-section">
+    <div class="about"><h3>Advanced</h3><p>Only needed when your apps are published under another company name.</p></div>
+    <div>
+      <div class="field"><label for="publishers">Official app publishers <span class="opt">(optional)</span></label>
+        <textarea id="publishers" name="publishers" rows="2" placeholder="Acme Insurance Ltd">{{ v.publishers or '' }}</textarea>
+        <span class="hint">Company names that publish your apps, one per line. Apps by exactly these publishers are treated as official.</span></div>
+    </div>
+  </section>
+  <div class="form-actions">
+    <a class="btn ghost" href="{{ '/brands/' ~ brand.id if brand else '/brands' }}">Cancel</a>
+    <button class="btn">{{ "Save changes" if brand else "Add brand" }}</button>
+  </div>
+</form>
+{% endblock %}

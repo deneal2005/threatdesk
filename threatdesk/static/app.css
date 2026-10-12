@@ -735,3 +735,10 @@ code.copy { display: inline-block; margin-top: 4px; padding: 4px 7px; background
   .btn.sm, .menu > summary.btn { height: 40px; min-width: 40px; }
   .menu-pop { left: 0; right: auto; }
 }
+
+/* Rebuild fixes for observed bugs (blueprint 05 §10): D4 section heads flex everywhere, D2 real disclosure
+   chevrons, D5 no stacked-sheet margin inside grids. */
+.section-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s4); margin-bottom: var(--s3); }
+.checks summary::after { content: " \25B8"; font-size: 10px; }
+.checks details[open] summary::after { content: " \25BE"; }
+.cols-2 > .sheet + .sheet, .cols-3 > .sheet + .sheet, .split > aside > .sheet + .sheet { margin-top: 0; }

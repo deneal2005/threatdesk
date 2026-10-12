@@ -1,0 +1,34 @@
+{% import "macros.html" as m with context %}
+<form method="post" action="/brands/{{ brand.id }}/social">
+  {{ m.csrf() }}
+  {% if form_error %}<p class="alert field-error" role="alert" id="add-error">{{ form_error }}</p>{% endif %}
+  {% set chosen = v.platform or last_platform %}
+  <div class="add-grid">
+    <div class="field"><label for="s-platform">Platform</label>
+      <select id="s-platform" name="platform">
+        <option value="auto">Detect from the link</option>
+        {% for k, p in platforms.items() %}<option value="{{ k }}" {% if chosen == k %}selected{% endif %}>{{ p[0] }}</option>{% endfor %}
+      </select></div>
+    <div class="field span-2"><label for="s-handle">Handle or profile link</label>
+      <input id="s-handle" name="handle" value="{{ v.handle or '' }}" placeholder="https://www.instagram.com/acmebank or @acmebank" maxlength="500" required {% if add_open %}autofocus{% endif %} aria-describedby="s-hint{% if form_error %} add-error{% endif %}" {% if form_error %}aria-invalid="true"{% endif %}>
+      <span class="hint" id="s-hint">Any number of accounts per platform: add each one separately.</span></div>
+  </div>
+  <details class="more" {% if v.display_name or v.purpose or v.region or v.platform_id or v.notes or v.is_primary %}open{% endif %}>
+    <summary class="linklike small">More options</summary>
+    <div class="add-grid">
+      <div class="field"><label for="s-name">Display name <span class="opt">(optional)</span></label>
+        <input id="s-name" name="display_name" value="{{ v.display_name or '' }}" maxlength="120" placeholder="Acme Bank Help"></div>
+      <div class="field"><label for="s-purpose">Purpose <span class="opt">(optional)</span></label>
+        <input id="s-purpose" name="purpose" value="{{ v.purpose or '' }}" maxlength="120" placeholder="Customer support"></div>
+      <div class="field"><label for="s-region">Region or language <span class="opt">(optional)</span></label>
+        <input id="s-region" name="region" value="{{ v.region or '' }}" maxlength="60" placeholder="India · Hindi"></div>
+      <div class="field"><label for="s-pid">Platform ID <span class="opt">(optional)</span></label>
+        <input id="s-pid" name="platform_id" value="{{ v.platform_id or '' }}" maxlength="120" placeholder="UCxxxxxxxx">
+        <span class="hint">A stable id that survives renames (YouTube channel id, Facebook page id).</span></div>
+      <div class="field span-2"><label for="s-notes">Notes <span class="opt">(optional)</span></label>
+        <textarea id="s-notes" name="notes" maxlength="2000" rows="2">{{ v.notes or '' }}</textarea></div>
+      <label class="check"><input type="checkbox" name="is_primary" value="1" {% if v.is_primary %}checked{% endif %}> Primary account on this platform</label>
+    </div>
+  </details>
+  <div class="add-actions"><button class="btn">Add account</button></div>
+</form>

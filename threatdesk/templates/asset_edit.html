@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block title %}Edit {{ label }} · ThreatDesk{% endblock %}
+{% block content %}
+{% set val = v or {} %}
+{% set what = {"website": "Website", "social": "Social account", "app": "App listing"}[kind] %}
+<header class="page-head">
+  <div class="titles">
+    <span class="eyebrow"><a href="/brands/{{ brand.id }}?tab={{ segment }}">{{ brand.name }}</a><span class="sep">/</span>{{ what }}</span>
+    <h1>Edit {{ label }}</h1>
+  </div>
+</header>
+<form class="sheet pad edit-form" method="post" action="/brands/{{ brand.id }}/{{ segment }}/{{ r.id }}">
+  {{ m.csrf() }}
+  <input type="hidden" name="version" value="{{ r.version }}">
+  {% if kind == "website" %}
+  <div class="cols-2">
+    <div class="field"><label for="e-url">Website address</label>
+      <input id="e-url" name="url" value="{{ val.get('url', r.url) }}" maxlength="500" required></div>
+    <div class="field"><label for="e-kind">Type</label>
+      <select id="e-kind" name="kind">{% for k, l in website_kinds.items() %}<option value="{{ k }}" {% if k == val.get('kind', r.kind) %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+  </div>
+  <div class="field"><label for="e-purpose">Purpose <span class="opt">(optional)</span></label>
+    <input id="e-purpose" name="purpose" value="{{ val.get('purpose', r.purpose) }}" maxlength="120"></div>
+  {% elif kind == "social" %}
+  <div class="cols-2">
+    <div class="field"><label for="e-platform">Platform</label>
+      <select id="e-platform" name="platform">{% for k, p in platforms.items() %}<option value="{{ k }}" {% if k == val.get('platform', r.platform) %}selected{% endif %}>{{ p[0] }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="e-handle">Handle or profile link</label>
+      <input id="e-handle" name="handle" value="{{ val.get('handle', r.profile_url if '/' in r.handle else r.handle) }}" maxlength="500" required></div>
+    <div class="field"><label for="e-name">Display name <span class="opt">(optional)</span></label>
+      <input id="e-name" name="display_name" value="{{ val.get('display_name', r.display_name) }}" maxlength="120"></div>
+    <div class="field"><label for="e-purpose">Purpose <span class="opt">(optional)</span></label>
+      <input id="e-purpose" name="purpose" value="{{ val.get('purpose', r.purpose) }}" maxlength="120"></div>
+    <div class="field"><label for="e-region">Region or language <span class="opt">(optional)</span></label>
+      <input id="e-region" name="region" value="{{ val.get('region', r.region) }}" maxlength="60"></div>
+    <div class="field"><label for="e-pid">Platform ID <span class="opt">(optional)</span></label>
+      <input id="e-pid" name="platform_id" value="{{ val.get('platform_id', r.platform_id or '') }}" maxlength="120"></div>
+  </div>
+  {% else %}
+  <div class="cols-2">
+    <div class="field"><label for="e-ref">{{ "Play Store link or package" if r.platform == "android" else "App Store link or id" }}</label>
+      <input id="e-ref" name="store_ref" value="{{ val.get('store_ref', r.store_id) }}" maxlength="500" required></div>
+    {% if r.platform == "ios" %}
+    <div class="field"><label for="e-bundle">Bundle identifier <span class="opt">(optional)</span></label>
+      <input id="e-bundle" name="bundle_id" value="{{ val.get('bundle_id', r.bundle_id or '') }}" maxlength="155"></div>
+    {% endif %}
+    <div class="field"><label for="e-name">App name <span class="opt">(optional)</span></label>
+      <input id="e-name" name="name" value="{{ val.get('name', r.name) }}" maxlength="120"></div>
+    <div class="field"><label for="e-product">Product or service <span class="opt">(optional)</span></label>
+      <input id="e-product" name="product" value="{{ val.get('product', r.product) }}" maxlength="120"></div>
+    <div class="field"><label for="e-market">Country or market <span class="opt">(optional)</span></label>
+      <input id="e-market" name="market" value="{{ val.get('market', r.market) }}" maxlength="60"></div>
+    <div class="field"><label for="e-category">Category <span class="opt">(optional)</span></label>
+      <input id="e-category" name="category" value="{{ val.get('category', r.category) }}" maxlength="60"></div>
+  </div>
+  {% endif %}
+  <div class="field"><label for="e-notes">Notes <span class="opt">(optional)</span></label>
+    <textarea id="e-notes" name="notes" maxlength="2000" rows="3">{{ val.get('notes', r.notes) }}</textarea></div>
+  {% set active = (val.get('status', 'active' if r.active else 'inactive')) != 'inactive' %}
+  <fieldset class="field">
+    <legend class="label">Status</legend>
+    <div class="choices">
+      <label class="choice"><input type="radio" name="status" value="active" {% if active %}checked{% endif %}><span>Active: treated as official</span></label>
+      <label class="choice"><input type="radio" name="status" value="inactive" {% if not active %}checked{% endif %}><span>Inactive: kept for records only</span></label>
+    </div>
+  </fieldset>
+  <label class="check"><input type="checkbox" name="is_primary" value="1" {% if (val.get('is_primary') if val else r.is_primary) %}checked{% endif %}> {{ "Primary website" if kind == "website" else "Primary on this platform" }}</label>
+  <div class="form-actions">
+    <a class="btn ghost" href="/brands/{{ brand.id }}?tab={{ segment }}">Cancel</a>
+    <button class="btn">Save changes</button>
+  </div>
+</form>
+<p class="small muted section-gap">
+  {% if r.verification_status == "verified" %}Verified {{ r.verified_at|dt }}{% if r.verification_method %} · {{ methods.get(r.verification_method, r.verification_method) }}{% endif %}.
+  {% elif r.verification_status == "pending" %}Checking…
+  {% else %}Not verified yet{% if r.verification_note %}: {{ r.verification_note }}{% else %}.{% endif %}{% endif %}
+  Changing the address, handle or store id clears the verification.
+</p>
+{% endblock %}

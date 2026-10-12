@@ -1,0 +1,66 @@
+{% import "macros.html" as m with context %}
+{% import "asset_macros.html" as am with context %}
+{% set intros = {
+  "website": "Every domain and site you run: main, regional, product and campaign sites. Subdomains of these count as official too.",
+  "social": "Every official account, as many per platform as you have: regional pages, support handles, product channels.",
+  "app": "Every app you publish on Google Play and the App Store. Copycats are anything that looks like yours but isn't listed here."} %}
+{% set add_label = {"website": "Add website", "social": "Add social account", "app": "Add mobile app"}[kind] %}
+{% set nouns = {"website": "websites", "social": "social accounts", "app": "apps"}[kind] %}
+<div class="tab-intro">
+  <p class="lede">{{ intros[kind] }}</p>
+  {% if view.unverified %}
+  <div class="tab-actions">
+    <form method="post" action="/brands/{{ brand.id }}/{{ segment }}/check-all">{{ m.csrf() }}<button class="btn quiet sm">Check all unverified ({{ [view.unverified, 50]|min }})</button></form>
+  </div>
+  {% endif %}
+</div>
+
+<details class="add-panel" {% if add_open or form_error or view.total == 0 %}open{% endif %}>
+  <summary class="btn">{{ m.icon("plus") }}{{ add_label }}</summary>
+  <div class="sheet pad add-body">
+    {% include "_add_" ~ kind ~ ".html" %}
+  </div>
+</details>
+
+{% if view.filters_on %}
+<form class="asset-filter" method="get" action="/brands/{{ brand.id }}" role="search">
+  <input type="hidden" name="tab" value="{{ segment }}">
+  <div class="field grow-2"><label class="sr" for="f-q">Search {{ nouns }}</label>
+    <input id="f-q" type="search" name="q" value="{{ view.q }}" placeholder="Search {{ nouns }}"></div>
+  {% if view.platforms_present|length > 1 %}
+  <div class="field"><label class="sr" for="f-platform">Platform</label>
+    <select id="f-platform" name="platform"><option value="">All platforms</option>
+      {% for p in view.platforms_present %}<option value="{{ p }}" {% if view.platform == p %}selected{% endif %}>{{ platforms[p][0] if p in platforms else p }}</option>{% endfor %}
+    </select></div>
+  {% endif %}
+  <div class="field"><label class="sr" for="f-status">Status</label>
+    <select id="f-status" name="status">{% for k, l in status_filters.items() %}<option value="{{ k }}" {% if view.status == k %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+  <button class="btn quiet">Filter</button>
+  {% if view.filtered %}<span class="small muted">{{ view.shown }} of {{ view.total }} shown · <a href="/brands/{{ brand.id }}?tab={{ segment }}">Clear</a></span>{% endif %}
+</form>
+{% endif %}
+
+<div id="asset-list" {% if view.pending %}hx-get="{{ request.url }}" hx-trigger="every 3s" hx-select="#asset-list" hx-swap="outerHTML"{% endif %}>
+  {% if view.total and not view.groups %}
+  <div class="empty slim"><h3>Nothing matches</h3><p>Try other words, or clear the filters.</p></div>
+  {% endif %}
+  {% for key, items in view.groups %}
+  <section class="asset-group">
+    {% if kind == "social" %}
+    <h3 class="group-head">{{ am.pmark(key) }}{{ platforms[key][0] if key in platforms else key }}<span class="num muted">{{ items|length }}</span></h3>
+    {% elif kind == "app" %}
+    <h3 class="group-head">{% if key %}{{ key }}{% else %}Not named yet<span class="small faint">· names fill in when a listing is checked</span>{% endif %}</h3>
+    {% endif %}
+    <ul class="asset-list">
+      {% for r in items %}{% include "_asset_row_" ~ kind ~ ".html" %}{% endfor %}
+    </ul>
+  </section>
+  {% endfor %}
+  {% if view.pages > 1 %}
+  <nav class="pager" aria-label="Pages">
+    {% for p in range(1, view.pages + 1) %}
+    <a href="/brands/{{ brand.id }}?tab={{ segment }}&amp;page={{ p }}{% if view.q %}&amp;q={{ view.q|urlencode }}{% endif %}{% if view.status %}&amp;status={{ view.status }}{% endif %}{% if view.platform %}&amp;platform={{ view.platform|urlencode }}{% endif %}" {% if p == view.page %}aria-current="page"{% endif %}>{{ p }}</a>
+    {% endfor %}
+  </nav>
+  {% endif %}
+</div>

@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block title %}Overview · ThreatDesk{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div class="titles">
+    <span class="eyebrow">Overview</span>
+    <h1>{% if metrics.new %}{{ metrics.new }} new finding{{ "s" if metrics.new != 1 }} to triage{% else %}Nothing waiting for triage{% endif %}</h1>
+  </div>
+</header>
+
+{% with placeholder="Paste a suspicious link, app or profile", server_note=False, autofocus=False, value="", brand_id=None %}
+{% include "_paste.html" %}
+{% endwith %}
+
+<div class="split section">
+  <section>
+    <div class="section-head">
+      <h2>Needs triage</h2>
+      {% if queue %}<a class="small" href="/findings?view=new">All new findings</a>{% endif %}
+    </div>
+    {% if queue %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th class="tight">Score</th><th>Finding</th><th class="hide-sm">Brand</th><th class="tight">Seen</th></tr></thead>
+        <tbody>
+        {% for f in queue %}
+          <tr>
+            <td class="tight">{{ m.score(f) }}</td>
+            <td><a class="cell-main defanged" href="/findings/{{ f.id }}">{{ f.display_name|dfg }}</a>
+              <span class="cell-sub">{{ f.kind|kind }} · {{ f.verdict }}</span></td>
+            <td class="hide-sm">{{ names.get(f.brand_id, "-") }}</td>
+            <td class="tight faint" title="{{ f.last_seen|dt }}">{{ f.last_seen|ago }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% elif not brands %}
+    <div class="empty">
+      <h3>Start by adding your brand</h3>
+      <p>Tell ThreatDesk which websites, accounts and apps are really yours. Then it can find what pretends to be you.</p>
+      <a class="btn" href="/brands/new">{{ m.icon("plus") }}Add a brand</a>
+    </div>
+    {% else %}
+    <div class="empty">
+      <h3>You're caught up</h3>
+      <p>New findings from scans and customer reports will appear here. Run a scan to look for new look-alikes now.</p>
+      <a class="btn quiet" href="/brands">Go to brands</a>
+    </div>
+    {% endif %}
+  </section>
+
+  <aside>
+    <div class="sheet pad">
+      <span class="eyebrow">Open findings</span>
+      <div class="figures">
+        {% for sev in ("High", "Medium", "Low") %}
+        <div><a class="lbl" href="/findings?severity={{ sev }}">{{ sev }}</a><span class="fig">{{ metrics.open[sev] }}</span></div>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="sheet pad">
+      <span class="eyebrow">Response</span>
+      <div class="figures">
+        <div><span class="lbl">Found → confirmed<span class="sub">average, n = {{ metrics.detect_confirm_n }}</span></span><span class="fig">{{ metrics.detect_confirm }}</span></div>
+        <div><span class="lbl">Confirmed → taken down<span class="sub">average, n = {{ metrics.confirm_takedown_n }}</span></span><span class="fig">{{ metrics.confirm_takedown }}</span></div>
+        <div><span class="lbl">Precision<span class="sub">confirmed vs false positives, n = {{ metrics.precision_n }}</span></span><span class="fig">{{ metrics.precision }}</span></div>
+      </div>
+    </div>
+  </aside>
+</div>
+{% endblock %}

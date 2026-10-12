@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block title %}{{ brand.name }} · ThreatDesk{% endblock %}
+{% block content %}
+<header class="page-head brand-head">
+  <div class="titles">
+    <span class="eyebrow"><a href="/brands">Brands</a><span class="sep">/</span>{% if brand.scan_interval_hours %}Scans every {{ brand.scan_interval_hours }} h{% else %}Automatic scans off{% endif %}</span>
+    <h1>{{ brand.name }}</h1>
+    {% if primary %}<a class="head-site mono" href="{{ primary.url }}" target="_blank" rel="noopener noreferrer">{{ primary.url_key }}</a>{% endif %}
+  </div>
+  <div class="actions">
+    <a class="btn ghost" href="/findings?brand_id={{ brand.id }}">Findings</a>
+    <a class="btn ghost" href="/reports/brand/{{ brand.id }}">Summary</a>
+    <a class="btn quiet" href="/brands/{{ brand.id }}/edit">Brand settings</a>
+    <form method="post" action="/brands/{{ brand.id }}/scan">{{ m.csrf() }}
+      {% if scan_running %}<button class="btn" disabled title="A scan for this brand is queued or running">{{ m.icon("scan") }}Scan running…</button>
+      {% else %}<button class="btn">{{ m.icon("scan") }}Scan now</button>{% endif %}
+    </form>
+  </div>
+</header>
+<nav class="tabs brand-tabs" aria-label="Brand sections">
+  {% for key, lbl in tabs %}
+  <a href="/brands/{{ brand.id }}{% if key != 'overview' %}?tab={{ key }}{% endif %}" {% if tab == key %}aria-current="page"{% endif %}>{{ lbl }}{% if key != "overview" %}<span class="num">{{ counts[key] }}</span>{% endif %}</a>
+  {% endfor %}
+</nav>
+{% if tab == "overview" %}{% include "_brand_overview.html" %}
+{% elif tab == "allow" %}{% include "_brand_allow.html" %}
+{% else %}{% include "_assets_tab.html" %}{% endif %}
+{% endblock %}

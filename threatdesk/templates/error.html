@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% set titles = {404: "Not found", 403: "Not allowed", 429: "Too many requests", 400: "Check what you entered", 422: "Check what you entered"} %}
+{% block title %}{{ titles.get(code, "Something went wrong") }} · ThreatDesk{% endblock %}
+{% block content %}
+<div class="error-page">
+  <span class="eyebrow">Error {{ code }}</span>
+  <h1>{{ titles.get(code, "Something went wrong") }}</h1>
+  {% if detail %}<p class="lede">{{ detail }}</p>{% endif %}
+  <p><a class="btn quiet" href="/">Go to overview</a></p>
+</div>
+{% endblock %}

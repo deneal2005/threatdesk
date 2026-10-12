@@ -1,0 +1,45 @@
+{% import "macros.html" as m with context %}
+<div class="tab-intro">
+  <p class="lede">Things that are not yours but must never be reported: partners, resellers, agencies. Investigations treat them like official assets and scans skip them.</p>
+</div>
+<div class="split">
+  <div>
+    {% if whitelist %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Type</th><th>Value</th><th class="hide-sm">Reason</th><th class="tight">Added</th><th class="tight"><span class="sr">Remove</span></th></tr></thead>
+        <tbody>
+        {% for w in whitelist %}
+          <tr>
+            <td class="nowrap">{{ whitelist_types.get(w.type, w.type) }}</td>
+            <td class="mono">{{ w.value }}</td>
+            <td class="hide-sm small">{{ w.reason }}</td>
+            <td class="tight faint" title="{{ w.created|dt }}">{{ w.created|ago }}</td>
+            <td class="tight"><form method="post" action="/brands/{{ brand.id }}/whitelist/{{ w.id }}/delete">{{ m.csrf() }}<button class="btn ghost sm" aria-label="Remove {{ w.value }} from the allow list">Remove</button></form></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty slim">
+      <h3>Nothing on the allow list</h3>
+      <p>Marking a finding as a false positive can add it here too.</p>
+    </div>
+    {% endif %}
+  </div>
+  <aside>
+    <form class="sheet pad" method="post" action="/brands/{{ brand.id }}/whitelist">
+      {{ m.csrf() }}
+      <h3 class="panel-title">Add to the allow list</h3>
+      <div class="field"><label for="wl-type">Type</label>
+        <select id="wl-type" name="type">{% for k, l in whitelist_types.items() %}<option value="{{ k }}">{{ l }}</option>{% endfor %}</select></div>
+      <div class="field"><label for="wl-value">Value</label>
+        <input id="wl-value" name="value" maxlength="300" placeholder="partner-example.com" required>
+        <span class="hint">A domain, a handle, an Android package, an App Store id, or an exact key such as host:shop.example.com.</span></div>
+      <div class="field"><label for="wl-reason">Reason <span class="opt">(optional)</span></label>
+        <input id="wl-reason" name="reason" maxlength="500" placeholder="Authorised reseller"></div>
+      <button class="btn">Add</button>
+    </form>
+  </aside>
+</div>

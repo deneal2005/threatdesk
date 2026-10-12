@@ -1,0 +1,28 @@
+{% set os = "Android" if r.platform == "android" else "iOS" %}
+<li class="asset{% if added and added|int == r.id %} is-new{% endif %}{% if not r.active %} is-off{% endif %}" id="app-{{ r.id }}">
+  <span class="pmark pm-{{ r.platform }}" aria-hidden="true">{{ "And" if r.platform == "android" else "iOS" }}</span>
+  <div class="asset-main">
+    <a class="asset-title mono" href="{{ r.store_url }}" target="_blank" rel="noopener noreferrer">{{ r.store_id }}</a>
+    {{ am.meta_line([os, r.name if r.name and r.name != r.product else "", ("bundle " ~ r.bundle_id) if r.bundle_id else "", r.market, r.category, r.notes|truncate(90)]) }}
+    {{ am.last_check(r) }}
+    {% if r.verification_status != "verified" and r.active %}
+    <details class="howto">
+      <summary class="linklike small">How to verify</summary>
+      <div class="howto-body small">
+        <p>Do one of these, then press <strong>Check</strong>:</p>
+        <ol>
+          <li>Link to this store listing from the home page of a verified website{% if not verified_sites %} (verify a website first){% endif %}.</li>
+          {% if r.platform == "android" %}
+          <li>Or publish <code>/.well-known/assetlinks.json</code> on a verified website, naming the package <code>{{ r.store_id }}</code>.</li>
+          {% else %}
+          <li>Or publish <code>/.well-known/apple-app-site-association</code> on a verified website, listing <code>TEAMID.{{ r.bundle_id or "your.bundle.id" }}</code>{% if not r.bundle_id %} (add the bundle identifier first){% endif %}.</li>
+          {% endif %}
+        </ol>
+        <p class="faint">A store listing that names your website is not proof: copycats do that too.</p>
+      </div>
+    </details>
+    {% endif %}
+  </div>
+  {{ am.badges(r, methods) }}
+  {{ am.actions(brand, "apps", r, (r.name or r.store_id) ~ " (" ~ os ~ ")") }}
+</li>

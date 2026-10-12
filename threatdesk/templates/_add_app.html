@@ -1,0 +1,31 @@
+{% import "macros.html" as m with context %}
+<form method="post" action="/brands/{{ brand.id }}/apps">
+  {{ m.csrf() }}
+  {% if form_error %}<p class="alert field-error" role="alert" id="add-error">{{ form_error }}</p>{% endif %}
+  <div class="add-grid">
+    <div class="field"><label for="a-name">App name <span class="opt">(optional for one store)</span></label>
+      <input id="a-name" name="name" value="{{ v.name or '' }}" maxlength="120" placeholder="Acme Mobile Banking" {% if add_open %}autofocus{% endif %}></div>
+    <div class="field"><label for="a-android">Android: Play Store link or package</label>
+      <input id="a-android" name="android" value="{{ v.android or '' }}" maxlength="500" placeholder="com.acme.bank" {% if form_error %}aria-describedby="add-error"{% endif %}></div>
+    <div class="field"><label for="a-ios">iOS: App Store link or id</label>
+      <input id="a-ios" name="ios" value="{{ v.ios or '' }}" maxlength="500" placeholder="https://apps.apple.com/app/id123456789"></div>
+  </div>
+  <p class="hint">Fill in Android, iOS or both. Both together are kept as one app with two store listings.</p>
+  <details class="more" {% if v.bundle_id or v.product or v.market or v.category or v.notes or v.is_primary %}open{% endif %}>
+    <summary class="linklike small">More options: bundle id, product, market</summary>
+    <div class="add-grid">
+      <div class="field"><label for="a-bundle">iOS bundle identifier <span class="opt">(optional)</span></label>
+        <input id="a-bundle" name="bundle_id" value="{{ v.bundle_id or '' }}" maxlength="155" placeholder="com.acme.bank.ios"></div>
+      <div class="field"><label for="a-product">Product or service <span class="opt">(optional)</span></label>
+        <input id="a-product" name="product" value="{{ v.product or '' }}" maxlength="120" placeholder="Retail banking"></div>
+      <div class="field"><label for="a-market">Country or market <span class="opt">(optional)</span></label>
+        <input id="a-market" name="market" value="{{ v.market or '' }}" maxlength="60" placeholder="IN"></div>
+      <div class="field"><label for="a-category">Category <span class="opt">(optional)</span></label>
+        <input id="a-category" name="category" value="{{ v.category or '' }}" maxlength="60" placeholder="Finance"></div>
+      <div class="field span-2"><label for="a-notes">Notes <span class="opt">(optional)</span></label>
+        <textarea id="a-notes" name="notes" maxlength="2000" rows="2">{{ v.notes or '' }}</textarea></div>
+      <label class="check"><input type="checkbox" name="is_primary" value="1" {% if v.is_primary %}checked{% endif %}> Primary app on its store</label>
+    </div>
+  </details>
+  <div class="add-actions"><button class="btn">Add app</button></div>
+</form>

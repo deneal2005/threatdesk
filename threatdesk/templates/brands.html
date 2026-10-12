@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block title %}Brands · ThreatDesk{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div class="titles">
+    <span class="eyebrow">Brands</span>
+    <h1>What you protect</h1>
+  </div>
+  {% if brands %}<div class="actions"><a class="btn" href="/brands/new">{{ m.icon("plus") }}Add a brand</a></div>{% endif %}
+</header>
+{% if brands %}
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Brand</th><th>Main website</th><th>Official assets</th><th class="hide-sm">Automatic scans</th><th class="hide-sm">Last scan</th></tr></thead>
+    <tbody>
+    {% for b in brands %}
+      {% set c = counts.get(b.id, {"website": 0, "social": 0, "app": 0, "verified": 0}) %}
+      <tr>
+        <td><a class="cell-main" href="/brands/{{ b.id }}">{{ b.name }}</a></td>
+        <td class="mono">{{ primaries.get(b.id) or "None yet" }}</td>
+        <td>{{ c.website }} site{{ "s" if c.website != 1 }} · {{ c.social }} account{{ "s" if c.social != 1 }} · {{ c.app }} app{{ "s" if c.app != 1 }}
+          <span class="cell-sub">{{ c.verified }} verified</span></td>
+        <td class="hide-sm">{% if b.scan_interval_hours %}Every {{ b.scan_interval_hours }} h{% else %}Off{% endif %}</td>
+        <td class="hide-sm faint" title="{{ b.last_scan_at|dt }}">{{ b.last_scan_at|ago if b.last_scan_at else "Never" }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty">
+  <h3>Add the brand you want to protect</h3>
+  <p>Its official websites, accounts and apps tell ThreatDesk what is genuine. Anything that imitates them becomes a lead.</p>
+  <a class="btn" href="/brands/new">{{ m.icon("plus") }}Add a brand</a>
+</div>
+{% endif %}
+{% endblock %}

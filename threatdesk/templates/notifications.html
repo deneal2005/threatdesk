@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block title %}Alerts · ThreatDesk{% endblock %}
+{% block content %}
+{% set unread_rows = rows|rejectattr("read")|list %}
+<header class="page-head">
+  <div class="titles">
+    <span class="eyebrow">Alerts</span>
+    <h1>{% if unread_rows %}{{ unread_rows|length }} unread{% else %}All read{% endif %}</h1>
+  </div>
+  {% if unread_rows %}
+  <div class="actions">
+    <form method="post" action="/notifications/read">{{ m.csrf() }}<button class="btn quiet">Mark all as read</button></form>
+  </div>
+  {% endif %}
+</header>
+{% if rows %}
+<ul class="rows sheet">
+  {% for n in rows %}
+  <li class="{{ 'unread' if not n.read }}">
+    <span class="dot" aria-hidden="true"></span>
+    <span class="grow">{% if n.finding_id %}<a href="/findings/{{ n.finding_id }}">{{ n.text|dfg }}</a>{% else %}{{ n.text|dfg }}{% endif %}
+      {% if not n.read %}<span class="sr">(unread)</span>{% endif %}</span>
+    <span class="small faint nowrap" title="{{ n.created|dt }}">{{ n.created|ago }}</span>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<div class="empty">
+  <h3>No alerts yet</h3>
+  <p>You'll get one for each new finding from a scan or a customer report.</p>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,104 @@
+{% import "macros.html" as m with context %}
+{% import "asset_macros.html" as am with context %}
+<div class="split">
+  <div>
+    {% if setup %}
+    <section class="sheet setup">
+      <div class="setup-head"><h2>Finish setting up</h2><span class="small muted">{{ 4 - setup|length }} of 4 done</span></div>
+      <ol class="setup-list">
+        {% for title, text, href in setup %}
+        <li><a href="{{ href }}"><strong>{{ title }}</strong><span class="small muted">{{ text }}</span></a></li>
+        {% endfor %}
+      </ol>
+    </section>
+    {% endif %}
+
+    <section class="section">
+      <div class="section-head"><h2>Official assets</h2><span class="small muted">What ThreatDesk treats as genuine</span></div>
+      {% set socials = data.social|map(attribute="platform")|unique|list %}
+      {% set android = data.app|selectattr("platform", "equalto", "android")|list|length %}
+      <div class="asset-cards">
+        <a class="sheet asset-card" href="/brands/{{ brand.id }}?tab=websites">
+          <span class="eyebrow">Websites</span>
+          <span class="fig num">{{ data.website|length }}</span>
+          <span class="small muted">{{ data.website|selectattr("verified")|list|length }} verified{% set off = data.website|rejectattr("active")|list|length %}{% if off %} · {{ off }} inactive{% endif %}</span>
+          <span class="card-list mono small">{% for s in data.website[:3] %}<span>{{ s.url_key }}</span>{% endfor %}</span>
+        </a>
+        <a class="sheet asset-card" href="/brands/{{ brand.id }}?tab=social">
+          <span class="eyebrow">Social accounts</span>
+          <span class="fig num">{{ data.social|length }}</span>
+          <span class="small muted">{{ socials|length }} platform{{ "s" if socials|length != 1 }} · {{ data.social|selectattr("verified")|list|length }} verified</span>
+          <span class="card-marks">{% for p in socials[:10] %}{{ am.pmark(p) }}{% endfor %}</span>
+        </a>
+        <a class="sheet asset-card" href="/brands/{{ brand.id }}?tab=apps">
+          <span class="eyebrow">Mobile apps</span>
+          <span class="fig num">{{ data.app|length }}</span>
+          <span class="small muted">{{ android }} Android · {{ data.app|length - android }} iOS · {{ data.app|selectattr("verified")|list|length }} verified</span>
+          <span class="card-list small">{% for name in (data.app|map(attribute="product")|unique|list)[:3] %}<span>{{ name or "Unnamed app" }}</span>{% endfor %}</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head"><h2>Latest scan</h2>{% if scans %}<span class="small muted" title="{{ scans[0].created|dt }}">{{ scans[0].created|ago }}</span>{% endif %}</div>
+      {% if scans %}
+        {% set s = scans[0] %}{% set res = s.result or {} %}
+        <div class="sheet">
+        {% if s.status in ("queued", "running") %}
+          <div class="scanning" aria-live="polite">
+            <strong>{{ "Scanning now" if s.status == "running" else "Waiting for a free worker" }}</strong>
+            <div class="bar"></div>
+            <p class="small muted">Every source runs in parallel. Leads are investigated one by one and appear in Findings.</p>
+          </div>
+        {% elif s.status == "failed" %}
+          <p class="pad-x">The scan stopped: {{ s.error }}</p>
+        {% else %}
+          <ul class="rows">
+            {% for src in res.get("sources", []) %}
+            <li><span class="source-state {{ src.status|scan_status }}" aria-hidden="true"></span>
+              <span class="grow"><strong>{{ src.name|scan_source }}</strong><span class="cell-sub">{{ src.status|dfg }}</span></span>
+              <span class="num small" title="candidates">{{ src.candidates }}</span></li>
+            {% endfor %}
+          </ul>
+          <p class="pad-x small muted">{{ res.get("enqueued", 0) }} lead{{ "s" if res.get("enqueued", 0) != 1 }} sent for investigation{% if res.get("search_findings_new") %}, {{ res.search_findings_new }} new profiles from search results{% endif %}.</p>
+        {% endif %}
+        </div>
+      {% else %}
+      <div class="empty slim">
+        <h3>No scans yet</h3>
+        <p>A scan looks for look-alike domains, copycat apps, channels and accounts, then investigates each one.</p>
+        <form method="post" action="/brands/{{ brand.id }}/scan">{{ m.csrf() }}<button class="btn quiet">{{ m.icon("scan") }}Scan now</button></form>
+      </div>
+      {% endif %}
+    </section>
+  </div>
+
+  <aside>
+    <div class="sheet pad">
+      <span class="eyebrow">Customer report link</span>
+      <p class="small muted section-gap">Share it on your website or support replies. Anyone can report a scam without an account.</p>
+      <label class="sr" for="report-link">Customer report link</label>
+      <input id="report-link" type="text" readonly value="{{ report_link }}">
+      <p class="small section-gap"><a href="{{ report_link }}" target="_blank" rel="noopener noreferrer">Open the form</a></p>
+    </div>
+    <div class="sheet pad">
+      <span class="eyebrow">Brand settings</span>
+      <dl class="kv">
+        <dt>Keywords</dt><dd>{{ brand.keywords|join(", ") or "None" }}</dd>
+        <dt>Logo</dt><dd>{% if brand.logo_phash %}<img class="logo-thumb" src="/brands/{{ brand.id }}/logo" alt="Brand logo" width="40" height="40">{% else %}<a href="/brands/{{ brand.id }}/edit">Add a logo</a> to catch copied icons{% endif %}</dd>
+        {% if (brand.official_apps or {}).get("publishers") %}<dt>App publishers</dt><dd>{{ brand.official_apps.publishers|join(", ") }}</dd>{% endif %}
+      </dl>
+      <p class="small section-gap"><a href="/brands/{{ brand.id }}/edit">Change settings</a></p>
+    </div>
+    {% if scans|length > 1 %}
+    <div class="sheet pad">
+      <span class="eyebrow">Earlier scans</span>
+      <ul class="rows compact">
+        {% for s in scans[1:] %}
+        <li><span class="grow small" title="{{ s.created|dt }}">{{ s.created|ago }}</span><span class="small muted">{{ s.status }}{% if s.result %} · {{ (s.result or {}).get("enqueued", 0) }} leads{% endif %}</span></li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </aside>
+</div>

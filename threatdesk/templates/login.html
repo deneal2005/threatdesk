@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block title %}Log in · ThreatDesk{% endblock %}
+{% block plain_nav %}<span class="small muted">New here? <a href="/signup">Create an organisation</a></span>{% endblock %}
+{% block content %}
+<div class="auth">
+  <h1>Log in</h1>
+  <p class="lede">Your brand-protection case desk.</p>
+  <form method="post" action="/login" class="auth-form">
+    {{ m.csrf() }}
+    <div class="field"><label for="email">Email</label>
+      <input id="email" name="email" type="email" value="{{ email or '' }}" autocomplete="username" required {% if not email %}autofocus{% endif %}></div>
+    <div class="field"><label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required {% if email %}autofocus{% endif %}></div>
+    <button class="btn lg full">Log in</button>
+  </form>
+</div>
+{% endblock %}

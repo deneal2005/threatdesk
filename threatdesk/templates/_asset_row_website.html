@@ -1,0 +1,23 @@
+<li class="asset{% if added and added|int == r.id %} is-new{% endif %}{% if not r.active %} is-off{% endif %}" id="website-{{ r.id }}">
+  <span class="pmark pm-web" aria-hidden="true"><svg viewBox="0 0 20 20"><circle cx="10" cy="10" r="7"/><path d="M3 10h14M10 3c2.4 2.2 2.4 11.8 0 14M10 3c-2.4 2.2-2.4 11.8 0 14"/></svg></span>
+  <div class="asset-main">
+    <a class="asset-title mono" href="{{ r.url }}" target="_blank" rel="noopener noreferrer">{{ r.url_key }}</a>
+    {{ am.meta_line([website_kinds.get(r.kind, ""), r.purpose, r.notes|truncate(90)]) }}
+    {{ am.last_check(r) }}
+    {% if r.verification_status != "verified" and r.active %}
+    <details class="howto">
+      <summary class="linklike small">How to verify</summary>
+      <div class="howto-body small">
+        <p>Do one of these, then press <strong>Check</strong>:</p>
+        <ol>
+          <li>Add a DNS <strong>TXT</strong> record to <code>{{ r.domain }}</code> with the value<br><code class="copy">threatdesk-verification={{ r.verify_token }}</code></li>
+          <li>Or put this tag in the <code>&lt;head&gt;</code> of <code>{{ r.url }}</code><br><code class="copy">&lt;meta name="threatdesk-verification" content="{{ r.verify_token }}"&gt;</code></li>
+        </ol>
+        <p class="faint">Subdomains of a verified domain are verified automatically.</p>
+      </div>
+    </details>
+    {% endif %}
+  </div>
+  {{ am.badges(r, methods) }}
+  {{ am.actions(brand, "websites", r, r.url_key) }}
+</li>

@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block title %}Create an organisation · ThreatDesk{% endblock %}
+{% block plain_nav %}<span class="small muted">Have an account? <a href="/login">Log in</a></span>{% endblock %}
+{% block content %}
+<div class="auth">
+  <h1>Create an organisation</h1>
+  <p class="lede">Find look-alike sites, copycat apps and fake accounts, and build the evidence to take them down. You'll be the admin.</p>
+  <form method="post" action="/signup" class="auth-form">
+    {{ m.csrf() }}
+    <div class="field"><label for="org_name">Organisation</label>
+      <input id="org_name" name="org_name" value="{{ v.org_name or '' }}" placeholder="Acme Bank, brand protection" maxlength="120" required autofocus></div>
+    <div class="field"><label for="email">Work email</label>
+      <input id="email" name="email" type="email" value="{{ v.email or '' }}" autocomplete="username" required></div>
+    <div class="field"><label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="new-password" minlength="10" required aria-describedby="pw-hint">
+      <span class="hint" id="pw-hint">At least 10 characters.</span></div>
+    <button class="btn lg full">Create organisation</button>
+  </form>
+</div>
+{% endblock %}

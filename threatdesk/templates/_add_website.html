@@ -1,0 +1,24 @@
+{% import "macros.html" as m with context %}
+<form method="post" action="/brands/{{ brand.id }}/websites">
+  {{ m.csrf() }}
+  {% if form_error %}<p class="alert field-error" role="alert" id="add-error">{{ form_error }}</p>{% endif %}
+  {% set default_kind = v.kind or ("main" if not data.website else "regional") %}
+  <div class="add-grid">
+    <div class="field span-2"><label for="w-url">Website address</label>
+      <input id="w-url" name="url" value="{{ v.url or '' }}" placeholder="acmebank.com or https://www.acmebank.com/in/" maxlength="500" required {% if add_open %}autofocus{% endif %} aria-describedby="w-url-hint{% if form_error %} add-error{% endif %}" {% if form_error %}aria-invalid="true"{% endif %}>
+      <span class="hint" id="w-url-hint">A domain, subdomain or a section like acmebank.com/in. Add each site separately.</span></div>
+    <div class="field"><label for="w-kind">Type</label>
+      <select id="w-kind" name="kind">{% for k, l in website_kinds.items() %}<option value="{{ k }}" {% if k == default_kind %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+    <div class="field span-2"><label for="w-purpose">Purpose <span class="opt">(optional)</span></label>
+      <input id="w-purpose" name="purpose" value="{{ v.purpose or '' }}" placeholder="India retail banking" maxlength="120"></div>
+  </div>
+  <details class="more" {% if v.notes or v.is_primary %}open{% endif %}>
+    <summary class="linklike small">More options</summary>
+    <div class="add-grid">
+      <div class="field span-2"><label for="w-notes">Notes <span class="opt">(optional)</span></label>
+        <textarea id="w-notes" name="notes" maxlength="2000" rows="2">{{ v.notes or '' }}</textarea></div>
+      <label class="check"><input type="checkbox" name="is_primary" value="1" {% if v.is_primary %}checked{% endif %}> Make this the primary website</label>
+    </div>
+  </details>
+  <div class="add-actions"><button class="btn">Add website</button></div>
+</form>

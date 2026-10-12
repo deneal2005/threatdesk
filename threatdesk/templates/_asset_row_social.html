@@ -1,0 +1,28 @@
+{% set plabel = platforms[r.platform][0] if r.platform in platforms else r.platform %}
+{% set lbl = r.handle if r.platform in ("linkedin", "reddit", "whatsapp", "other") else "@" ~ r.handle %}
+<li class="asset{% if added and added|int == r.id %} is-new{% endif %}{% if not r.active %} is-off{% endif %}" id="social-{{ r.id }}">
+  {{ am.pmark(r.platform) }}
+  <div class="asset-main">
+    {% if r.profile_url %}<a class="asset-title" href="{{ r.profile_url }}" target="_blank" rel="noopener noreferrer">{{ lbl }}</a>{% else %}<span class="asset-title">{{ lbl }}</span>{% endif %}
+    {{ am.meta_line([r.display_name, r.purpose, r.region, ("ID " ~ r.platform_id) if r.platform_id and r.platform_id|lower != r.handle_key else "", r.notes|truncate(90)]) }}
+    {{ am.last_check(r) }}
+    {% if r.verification_status != "verified" and r.active %}
+    <details class="howto">
+      <summary class="linklike small">How to verify</summary>
+      <div class="howto-body small">
+        <p>Do one of these, then press <strong>Check</strong>:</p>
+        <ol>
+          <li>Link to this account from the home page of a verified website{% if not verified_sites %} (verify a website first){% endif %}.</li>
+          {% if r.platform in ("youtube", "bluesky", "github", "telegram", "instagram", "tiktok", "facebook") %}
+          <li>Or put this code in the account's bio or description while the check runs:<br><code class="copy">{{ r.verify_token }}</code>{% if r.platform in ("instagram", "tiktok", "facebook") %}<br><span class="faint">Reading {{ plabel }} bios needs the Apify integration.</span>{% endif %}</li>
+          {% endif %}
+          {% if r.platform == "bluesky" %}<li>Or use a verified domain as the Bluesky handle.</li>{% endif %}
+        </ol>
+        <p class="faint">A bio that only links to your website is not proof: impostors do that too.</p>
+      </div>
+    </details>
+    {% endif %}
+  </div>
+  {{ am.badges(r, methods) }}
+  {{ am.actions(brand, "social", r, lbl ~ " on " ~ plabel) }}
+</li>
