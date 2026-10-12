@@ -761,25 +761,32 @@ code.copy { display: inline-block; margin-top: 4px; padding: 4px 7px; background
 .status { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 500; padding: 2px 7px; border-radius: var(--r-sm); background: var(--sheet-2); color: var(--ink-2); border: 1px solid var(--rule); }
 .status-icon { font-size: 11px; }
 
-/* Dashboard Welcome & How It Works Banner */
+/* Operational Security Posture Briefing (Asymmetric Intelligence Desk) */
 .dash-head { margin-bottom: var(--s4); }
-.how-it-works-banner { background: var(--sheet); border: 1px solid var(--rule); margin-bottom: var(--s5); border-left: 4px solid var(--jade); }
-.how-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s4); }
-.how-col { display: flex; gap: var(--s3); align-items: flex-start; }
-.how-icon { width: 32px; height: 32px; flex: none; display: grid; place-items: center; background: var(--jade-wash); color: var(--jade-ink); border-radius: var(--r-sm); }
-.how-icon svg { width: 18px; height: 18px; }
+.ops-posture-panel { background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r); }
+.ops-posture-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: var(--s5); }
+.ops-sector-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s2); margin-bottom: var(--s3); border-bottom: 1px solid var(--rule-2); padding-bottom: 6px; }
+.ops-primary-sector { display: flex; flex-direction: column; justify-content: space-between; border-right: 1px solid var(--rule-2); padding-right: var(--s5); }
+.ops-secondary-sector { display: flex; flex-direction: column; justify-content: space-between; }
+.ops-triage-split { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3); margin-bottom: var(--s4); }
+.ops-metric-block { padding: var(--s3); background: var(--sheet-2); border: 1px solid var(--rule-2); border-radius: var(--r); border-left: 3px solid var(--rule); }
+.ops-metric-block.ops-high.is-active { border-left-color: var(--high); background: #FAF2EE; }
+.ops-metric-block.ops-triage { border-left-color: var(--med); }
+.ops-metric-label { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--s1); }
+.ops-metric-val { font-size: 30px; line-height: 1.1; margin-bottom: 2px; color: var(--ink); }
+.action-link { display: inline-block; margin-top: 4px; font-weight: 500; }
 
-/* Summary KPI Cards Grid */
-.summary-cards-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s3); margin-bottom: var(--s5); }
-.kpi-card { display: flex; flex-direction: column; justify-content: space-between; border-top: 3px solid var(--rule); transition: transform .12s var(--ease), box-shadow .12s var(--ease); }
-.kpi-card:hover { transform: translateY(-1px); box-shadow: var(--lift); }
-.kpi-card.kpi-high { border-top-color: var(--high); }
-.kpi-card.kpi-triage { border-top-color: var(--med); }
-.kpi-head { display: flex; justify-content: space-between; align-items: center; gap: var(--s2); margin-bottom: var(--s2); }
-.kpi-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--graphite); }
-.kpi-icon svg { width: 18px; height: 18px; color: var(--mute); }
-.kpi-value { font-size: 32px; line-height: 1.1; margin-bottom: var(--s1); color: var(--ink); }
-.kpi-badge { font-size: 11px; padding: 2px 6px; border-radius: 10px; font-weight: 600; }
+/* Operational Pipeline Stepper */
+.ops-pipeline { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s3); padding-top: var(--s3); border-top: 1px solid var(--rule-2); }
+.pipe-step { display: flex; gap: var(--s2); align-items: flex-start; }
+.pipe-step-num { width: 20px; height: 20px; flex: none; border-radius: 50%; background: var(--ink); color: var(--sheet); display: grid; place-items: center; font: 600 11px/1 var(--f-mono); }
+.pipe-step strong { display: block; font-size: 13px; margin-bottom: 2px; }
+
+/* Fleet & Perimeter Coverage Rows */
+.ops-fleet-metrics { display: flex; flex-direction: column; gap: var(--s3); flex: 1; justify-content: space-between; }
+.fleet-row { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--s3); padding: var(--s3); background: var(--sheet-2); border: 1px solid var(--rule-2); border-radius: var(--r); }
+.fleet-val { text-align: right; }
+.fleet-val .num { display: block; font-size: 26px; line-height: 1.1; color: var(--ink); }
 
 /* Search Bar in Toolbar */
 .toolbar-box { margin-bottom: var(--s4); }
@@ -874,7 +881,8 @@ code.copy { display: inline-block; margin-top: 4px; padding: 4px 7px; background
 .activity-timeline { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s3); }
 .act-item { display: flex; gap: var(--s3); align-items: flex-start; padding: var(--s2) 0; border-bottom: 1px solid var(--rule-2); }
 .act-item:last-child { border-bottom: none; }
-.act-badge-icon { width: 28px; height: 28px; flex: none; border-radius: 50%; background: var(--sheet-2); border: 1px solid var(--rule); display: grid; place-items: center; font-size: 12px; }
+.act-badge-icon { width: 28px; height: 28px; flex: none; border-radius: var(--r-sm); background: var(--sheet-2); border: 1px solid var(--rule); display: grid; place-items: center; color: var(--ink); }
+.act-badge-icon svg { width: 14px; height: 14px; stroke: currentColor; }
 .act-content { flex: 1; }
 .act-header { display: flex; gap: var(--s2); flex-wrap: wrap; align-items: baseline; font-size: 13px; color: var(--ink); }
 .act-time { margin-left: auto; font-size: 12px; color: var(--mute); }
@@ -888,13 +896,14 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 
 /* Responsive Breakpoints */
 @media (max-width: 960px) {
-  .how-grid { grid-template-columns: minmax(0, 1fr); gap: var(--s3); }
-  .summary-cards-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ops-posture-grid { grid-template-columns: minmax(0, 1fr); }
+  .ops-primary-sector { border-right: none; padding-right: 0; border-bottom: 1px solid var(--rule-2); padding-bottom: var(--s4); margin-bottom: var(--s4); }
   .evidence-item { grid-template-columns: minmax(0, 1fr); gap: var(--s2); }
 }
 
 @media (max-width: 640px) {
-  .summary-cards-grid { grid-template-columns: minmax(0, 1fr); }
+  .ops-triage-split { grid-template-columns: minmax(0, 1fr); }
+  .ops-pipeline { grid-template-columns: minmax(0, 1fr); }
   .toolbar { flex-direction: column; align-items: stretch; gap: var(--s3); }
   .search-form { max-width: 100%; margin: 0; }
   .expl-meta-grid { grid-template-columns: minmax(0, 1fr); }

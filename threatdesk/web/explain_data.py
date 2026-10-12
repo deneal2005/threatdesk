@@ -21,30 +21,30 @@ GLOSSARY = {
 }
 
 STATUS_ICON = {
-    "new": "•", "investigating": "🔍", "confirmed": "⚠️",
-    "takedown_requested": "✉", "taken_down": "✓", "false_positive": "⊘",
-    "monitoring": "👁",
+    "new": "•", "investigating": "◐", "confirmed": "■",
+    "takedown_requested": "⚑", "taken_down": "✓", "false_positive": "⊘",
+    "monitoring": "◎",
 }
 
 SEVERITY_META = {
     "Critical": {
-        "label": "Critical", "class": "critical", "icon": "🛑",
+        "label": "Critical", "class": "critical", "icon": "■",
         "explanation": "Immediate threat: verified malicious activity, credential theft, or active phishing.",
     },
     "High": {
-        "label": "High Risk", "class": "high", "icon": "⚠️",
+        "label": "High Risk", "class": "high", "icon": "▲",
         "explanation": "High risk: strong look-alike impersonation or multiple deceptive signals detected.",
     },
     "Medium": {
-        "label": "Medium Risk", "class": "medium", "icon": "⚡",
+        "label": "Medium Risk", "class": "medium", "icon": "◆",
         "explanation": "Suspicious indicators found: warrants human review before action.",
     },
     "Low": {
-        "label": "Low Risk", "class": "low", "icon": "ℹ",
+        "label": "Low Risk", "class": "low", "icon": "●",
         "explanation": "Minor technical anomalies; low probability of immediate danger.",
     },
     "Informational": {
-        "label": "Informational", "class": "clean", "icon": "✓",
+        "label": "Informational", "class": "clean", "icon": "○",
         "explanation": "No warning signs detected across automated checks.",
     },
 }

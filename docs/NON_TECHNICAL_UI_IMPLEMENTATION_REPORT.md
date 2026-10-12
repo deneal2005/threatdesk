@@ -90,19 +90,28 @@ The threat details and investigation reports were redesigned around seven struct
      * Complete check execution status list with collapsible raw JSON payloads.
      * Indicators list (IPs, ASNs, phone numbers, UPI IDs).
 
-### Phase 4: Consistent Risk Communication
-* Accessible severity indicators combining **text label**, **icon**, and **high-contrast color**:
-  * `Critical`: 🛑 Crimson badge (`#5a0c0c` / `#fff`)
-  * `High Risk`: ⚠️ High amber/red badge (`var(--high-wash)` / `#8f1d07`)
-  * `Medium Risk`: ⚡ Amber badge (`var(--med-wash)` / `#7d4500`)
-  * `Low Risk`: ℹ️ Low green/slate badge (`var(--low-wash)` / `#2e4b3e`)
-  * `No Strong Signals`: ✓ Clean badge (`var(--sheet-2)` / `var(--ink-2)`)
-  * `Inconclusive`: ? Blue info badge (`#e8f0fe` / `#174ea6`)
-  * `Verified Asset`: 🛡️ Shield badge (`var(--jade-wash)` / `var(--jade-ink)`)
-* Color is never the sole indicator of risk (WCAG 1.4.1 compliant).
+### Phase 4: Consistent Risk Communication & ThreatDesk Case Desk Identity
+* Adheres strictly to ThreatDesk's distinctive **Case Desk** threat intelligence aesthetic: cool paper background (`--paper: #ECEEEA`), green-black ink (`--ink: #121A16`), deep jade accents (`--jade: #0F6B57`), and disciplined monospace evidence records in `IBM Plex Mono`.
+* Rejects generic AI templates, floating glassmorphism, glowing neon borders, and consumer emojis.
+* Accessible severity indicators combining **text label**, **geometric symbol**, and **high-contrast color**:
+  * `Critical`: ■ Crimson badge (`#5a0c0c` / `#fff` with `■` solid block indicator)
+  * `High Risk`: ▲ High amber/red badge (`var(--high-wash)` / `#8f1d07` with `▲` alert triangle)
+  * `Medium Risk`: ◆ Amber badge (`var(--med-wash)` / `#7d4500` with `◆` caution diamond)
+  * `Low Risk`: ● Low green/slate badge (`var(--low-wash)` / `#2e4b3e` with `●` bullet anomaly)
+  * `Informational`: ○ Clean badge (`var(--sheet-2)` / `var(--ink-2)` with `○` baseline circle)
+* Accessible status states with disciplined symbols:
+  * `New`: `•` (Bullet)
+  * `Investigating`: `◐` (Half-circle / in triage)
+  * `Confirmed`: `■` (Solid block / verified threat)
+  * `Takedown Requested`: `⚑` (Flagged / takedown dispatch)
+  * `Taken Down`: `✓` (Resolved)
+  * `False Positive`: `⊘` (Dismissed / allowlisted)
+  * `Monitoring`: `◎` (Concentric circle / active surveillance)
+* Color is never the sole indicator of risk (WCAG 2.1 AA compliant with `role="status"` and explicit `aria-label` screen reader announcements).
 
 ### Phase 5: Ease of Use & Accessibility
-* **Fast Text Search:** Added live search query filtering (`?q=...`) to `/findings` supporting keyword, domain, and URL searches.
+* **Operational Dashboard Asymmetry:** The dashboard replaces repetitive identical cards with a prioritized operational posture sector (urgent risk counter and the 3-phase investigation pipeline) alongside a perimeter coverage sector (monitored assets and lifetime detections).
+* **Fast Text Search:** Live search query filtering (`?q=...`) in `/findings` supporting keyword, domain, and URL searches.
 * **Keyboard Navigation & Focus:** Enhanced `:focus-visible` styling with 2.5px high-contrast rings across all buttons, inputs, links, and accordions.
 * **Inline Terminology Glossary:** Tooltips and glossary entries for technical concepts: Triage, Look-alike, Takedown, Allowlist, RDAP, TLS, Defanged, SHA-256, OTP.
 * **Confirmation Dialogs:** Safety confirmations for consequential actions (bulk false positive marking and allowlisting).
@@ -114,22 +123,22 @@ The threat details and investigation reports were redesigned around seven struct
 
 | File | Type | Changes | Lines |
 |---|---|---|---|
-| `threatdesk/web/explain_data.py` | New | Constants, glossary dictionary, rule categories, and data models (`ThreatExplanation`, `EvidenceItem`, `NextStep`) | 144 |
+| `threatdesk/web/explain_data.py` | New | Constants, glossary dictionary, rule categories, data models (`ThreatExplanation`, `EvidenceItem`, `NextStep`), geometric symbols | 145 |
 | `threatdesk/web/explain.py` | New | Plain-English report generator (`explain_finding`), headlines, impact generator, confidence evaluator | 207 |
-| `tests/test_non_technical_ui.py` | New | Automated test suite for dashboard KPIs, 7-part report structure, search filter, and accessible badges | 134 |
+| `tests/test_non_technical_ui.py` | New | Automated test suite for dashboard KPIs, 7-part report structure, search filter, and accessible badges | 152 |
 | `threatdesk/templates/_report.html` | Modified | Complete redesign around 7-part plain English report structure with expandable technical details | 332 |
-| `threatdesk/templates/dashboard.html` | Modified | Modern safety dashboard with welcome, How-It-Works banner, 4 KPI cards, prioritized table, and activity feed | 294 |
-| `threatdesk/templates/findings.html` | Modified | Added fast search bar, accessible severity tags, bulk confirmation dialog, and refined triage toolbar | 196 |
-| `threatdesk/templates/macros.html` | Modified | Accessible severity macros (`sev`) with icons and tooltips, status macros (`status`), and additional SVG icons | 49 |
-| `threatdesk/static/app.css` | Modified | Added styling for report cards, KPI cards, activity feed, search bar, accessible badges, and responsive queries | 913 |
+| `threatdesk/templates/dashboard.html` | Modified | Asymmetric operational posture desk with live triage counters, 3-phase pipeline, prioritized table, and vector activity feed | 318 |
+| `threatdesk/templates/findings.html` | Modified | Added fast search bar, accessible severity tags, bulk confirmation dialog, and refined triage toolbar | 206 |
+| `threatdesk/templates/macros.html` | Modified | Accessible severity macros (`sev`) with geometric icons and tooltips, status macros (`status`), and vector SVG icons | 54 |
+| `threatdesk/static/app.css` | Modified | Case desk design tokens, posture panel, 7-part report briefing styles, search bar, accessible badges, responsive queries | 915 |
 | `threatdesk/web/reportview.py` | Modified | Integrated `explain_finding` into `report_context` to pass structured explanations to all report templates | 53 |
 | `threatdesk/web/dashboard.py` | Modified | Added real recent `CaseEvent` activity querying, recent findings, and asset count aggregations | 72 |
 | `threatdesk/web/findings.py` | Modified | Added search query parameter `q` filtering over `display_name` and `url` | 153 |
-| `threatdesk/web/present.py` | Modified | Added `sev_badge` filter and status helper imports; ensured file stays strictly under 300 lines | 278 |
+| `threatdesk/web/present.py` | Modified | Added `sev_badge` filter and status helper imports; strictly under 300 lines limit | 279 |
 | `threatdesk/metrics.py` | Modified | Added KPI metrics (`total_findings`, `high_priority`, `requiring_review`, `monitoring_count`) | 59 |
-| `docs/NON_TECHNICAL_UI_IMPLEMENTATION_REPORT.md` | New | Complete implementation and verification deliverable | — |
+| `docs/NON_TECHNICAL_UI_IMPLEMENTATION_REPORT.md` | New | Complete implementation, design directive compliance, and verification deliverable | — |
 
-*All Python files adhere strictly to the project's hardening constraint of `< 300` lines per file.*
+*All Python files strictly adhere to the project's hardening constraint of `< 300` lines per file.*
 
 ---
 
