@@ -5,6 +5,7 @@ IP, exactly like safe_fetch connects in production).
 """
 from __future__ import annotations
 
+from contextlib import contextmanager
 from datetime import timedelta
 
 import httpx
@@ -14,7 +15,8 @@ from threatdesk.db import utcnow
 
 PHISH_IP = "93.184.216.34"
 HOSTS = {"acmebank-kyc.xyz": PHISH_IP, "acmebank.com": "93.184.216.35", "old-bakery.com": "93.184.216.36",
-         "rdap.org": "93.184.216.40", "t.me": "93.184.216.41", "telegram.me": "93.184.216.42"}
+         "rdap.org": "93.184.216.40", "t.me": "93.184.216.41", "telegram.me": "93.184.216.42",
+         "acme-support-help.online": "93.184.216.37", "acmebank-rewards.xyz": "93.184.216.38"}
 
 PHISH_HTML = """<!doctype html><html><head><title>Acme Bank KYC Update</title>
 <meta name="description" content="Official Acme Bank customer care"></head><body>
@@ -30,6 +32,17 @@ PHISH_HTML = """<!doctype html><html><head><title>Acme Bank KYC Update</title>
 BAKERY_HTML = """<!doctype html><html><head><title>Old Bakery - fresh bread since 1998</title></head><body>
 <p>Sourdough, rye and pastries baked every morning. Visit our shop on the corner.</p>
 <a href="/contact">Contact</a> <a href="/privacy">Privacy</a></body></html>"""
+
+
+SUPPORT_HTML = """<!doctype html><html><head><title>Acme Bank Customer Care Helpline</title></head><body>
+<h1>Acme Bank official customer care</h1><p>Toll free helpline 24x7. Call or WhatsApp +91 98765 43210 for refunds,
+KYC update and blocked cards. Our support team will ask you to share the OTP to verify you.</p>
+<a href="https://wa.me/919876543210">Chat now</a></body></html>"""
+
+REWARDS_HTML = """<!doctype html><html><head><title>Claim your reward | Acme Bank</title></head><body>
+<h2>Congratulations! You have won Acme reward points in our lucky draw.</h2>
+<p>Claim your reward today only. Pay the processing fee of Rs 99 via UPI only to acmekyc@ybl and get flat 90% off.</p>
+</body></html>"""
 
 
 def _rdap_domain(name: str, days_old: int) -> dict:
@@ -60,6 +73,10 @@ def handler(request: httpx.Request) -> httpx.Response:
             return httpx.Response(200, json=_rdap_domain("old-bakery.com", 3000))
         if path == "/domain/acmebank.com":
             return httpx.Response(200, json=_rdap_domain("acmebank.com", 5000))
+        if path == "/domain/acme-support-help.online":
+            return httpx.Response(200, json=_rdap_domain("acme-support-help.online", 12))
+        if path == "/domain/acmebank-rewards.xyz":
+            return httpx.Response(200, json=_rdap_domain("acmebank-rewards.xyz", 40))
         if path.startswith("/ip/"):
             return httpx.Response(200, json={"name": "TINYHOST-NET", "handle": "NET-1", "country": "NL",
                                              "startAddress": "93.184.216.0", "endAddress": "93.184.216.255",
@@ -76,8 +93,9 @@ def handler(request: httpx.Request) -> httpx.Response:
     if host == "crt.sh":
         return httpx.Response(502)
     if host == "api.certspotter.com":
+        dom = request.url.params.get("domain", "")
         return httpx.Response(200, json=[{"not_before": "2026-01-01T00:00:00Z",
-                                          "dns_names": ["acmebank-kyc.xyz", "www.acmebank-kyc.xyz"]}])
+                                          "dns_names": [dom, f"www.{dom}"]}] if dom in HOSTS else [])
     if host == "checkurl.phishtank.com":
         return httpx.Response(200, json={"results": {"in_database": False}})
     if host in HOSTS:
@@ -85,6 +103,10 @@ def handler(request: httpx.Request) -> httpx.Response:
             return httpx.Response(200, html=PHISH_HTML)
         if vhost == "old-bakery.com":
             return httpx.Response(200, html=BAKERY_HTML)
+        if vhost == "acme-support-help.online":
+            return httpx.Response(200, html=SUPPORT_HTML)
+        if vhost == "acmebank-rewards.xyz":
+            return httpx.Response(200, html=REWARDS_HTML)
         if vhost == "acmebank.com":
             return httpx.Response(200, html="<html><head><title>Acme Bank</title></head><body>Welcome</body></html>")
     return httpx.Response(404)
@@ -94,9 +116,9 @@ def client() -> httpx.AsyncClient:
     return httpx.AsyncClient(transport=httpx.MockTransport(handler))
 
 
-@pytest.fixture
-def offline(monkeypatch):
-    """Patch DNS, TLS and ASN so investigations run fully offline against `handler`."""
+@contextmanager
+def offline_patches():
+    """Patch DNS, TLS and ASN so investigations run fully offline against `handler` (also used by the demo seed)."""
     from threatdesk import safety
     from threatdesk.checks import domain, rdap, tls
 
@@ -114,9 +136,20 @@ def offline(monkeypatch):
     async def no_asn(ip):
         return {}
 
-    monkeypatch.setattr(safety, "resolve_host", resolve_host)
-    monkeypatch.setattr(domain, "resolve_a", resolve_a)
-    monkeypatch.setattr(tls, "_handshake", no_tls)
-    monkeypatch.setattr(rdap, "_asn", no_asn)
+    patches = [(safety, "resolve_host", resolve_host), (domain, "resolve_a", resolve_a), (tls, "_handshake", no_tls),
+               (rdap, "_asn", no_asn)]
+    saved = [(mod, name, getattr(mod, name)) for mod, name, _ in patches]
+    for mod, name, fn in patches:
+        setattr(mod, name, fn)
     rdap._bootstrap.clear()
-    return client
+    try:
+        yield client
+    finally:
+        for mod, name, fn in saved:
+            setattr(mod, name, fn)
+
+
+@pytest.fixture
+def offline():
+    with offline_patches() as make:
+        yield make
