@@ -29,6 +29,8 @@ MESSAGES = {
               "background. Progress shows below.",
     "queued_all": "Scans started for every brand. Progress shows below.",
     "scan_already_running": "A scan for this brand is already running, so no second one was started.",
+    "scan_stopped": "Scan stopped. Findings it already saved are kept; start a new scan any time.",
+    "scan_not_running": "That scan had already finished, so there was nothing to stop.",
     "no_brands": "Add a brand first: scans look for look-alikes of a brand's name and assets.",
     "whitelisted": "Added to the allow list.",
     "status": "Status updated.",

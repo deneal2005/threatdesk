@@ -12,41 +12,43 @@
 {% else %}
   {% set s = p.scan %}
   {% set labels = {"queued": "Waiting for a free worker", "running": "Scanning now", "done": "Scan finished",
-                   "partial": "Scan finished with some errors", "failed": "Scan stopped"} %}
+                   "partial": "Scan finished with some errors", "failed": "Scan failed",
+                   "stopped": "Scan stopped"} %}
   <div class="sheet scan-card state-{{ p.state }}" {% if p.active %}aria-busy="true"{% endif %}>
     <div class="scan-card-head">
       <span class="scan-state-dot" aria-hidden="true"></span>
       <div class="grow">
         <strong role="status" aria-live="polite">{% if compact %}{{ brand.name }}: {% endif %}{{ labels[p.state] }}</strong>
-        <span class="cell-sub" title="{{ s.created|dt }}">Started {{ s.created|ago }}{% if (s.payload or {}).get("scheduled") %} · scheduled{% endif %}{% if not p.active and p.finished_at %} · finished {{ p.finished_at|ago }}{% endif %}</span>
+        <span class="cell-sub" title="{{ s.created|dt }}">Started {{ s.created|ago }}{% if (s.payload or {}).get("scheduled") %} · scheduled{% endif %}{% if not p.active and p.finished_at %} · {{ "stopped" if p.stopped else "finished" }} {{ p.finished_at|ago }}{% endif %}</span>
       </div>
       {% if compact %}<a class="small nowrap" href="/brands/{{ brand.id }}">Details →</a>{% endif %}
     </div>
 
     <ol class="scan-phases">
-      <li class="phase phase-{{ 'done' if s.status == 'done' else ('bad' if s.status == 'failed' else 'live') }}">
+      <li class="phase phase-{{ 'done' if s.status == 'done' else ('bad' if s.status == 'failed' else ('wait' if s.status == 'cancelled' else 'live')) }}">
         <span class="phase-name">Discovery</span>
         <span class="phase-detail small muted">
           {% if s.status == "queued" %}Waiting to start{% if s.attempts %} (retry {{ s.attempts + 1 }}){% endif %}{% if s.error %}: last try failed: {{ s.error }}{% endif %}
           {% elif s.status == "running" %}Searching domains, certificate logs, app stores and social platforms…
           {% elif s.status == "failed" %}Failed after {{ s.attempts }} attempt(s): {{ s.error }}
+          {% elif s.status == "cancelled" %}Stopped before discovery finished
           {% else %}{{ p.sources|length }} sources searched · {{ (s.result or {}).get("enqueued", 0) }} lead{{ "s" if (s.result or {}).get("enqueued", 0) != 1 }} found{% if (s.result or {}).get("search_findings_new") %} · {{ s.result.search_findings_new }} profiles from search results{% endif %}{% endif %}
         </span>
       </li>
-      <li class="phase phase-{{ 'wait' if s.status in ('queued', 'running') else ('live' if p.leads.live else 'done') }}">
+      <li class="phase phase-{{ 'wait' if s.status in ('queued', 'running') or (s.status == 'cancelled' and not p.leads.total) else ('live' if p.leads.live else 'done') }}">
         <span class="phase-name">Investigating leads</span>
         {% if p.leads.total %}
         <progress max="{{ p.leads.total }}" value="{{ p.leads.finished }}" aria-label="Leads investigated">{{ p.leads.percent }}%</progress>
-        <span class="phase-detail small muted"><span class="num">{{ p.leads.finished }}/{{ p.leads.total }}</span> done{% if p.leads.running %} · {{ p.leads.running }} running{% endif %}{% if p.leads.failed %} · <span class="tone-bad">{{ p.leads.failed }} failed</span>{% endif %}</span>
+        <span class="phase-detail small muted"><span class="num">{{ p.leads.finished }}/{{ p.leads.total }}</span> done{% if p.leads.running %} · {{ p.leads.running }} running{% endif %}{% if p.leads.failed %} · <span class="tone-bad">{{ p.leads.failed }} failed</span>{% endif %}{% if p.leads.cancelled %} · {{ p.leads.cancelled }} stopped{% endif %}</span>
         {% else %}
-        <span class="phase-detail small muted">{% if s.status in ("queued", "running") %}Starts when discovery finishes{% else %}No new leads to investigate{% endif %}</span>
+        <span class="phase-detail small muted">{% if s.status in ("queued", "running") %}Starts when discovery finishes{% elif s.status == "cancelled" %}Not started{% else %}No new leads to investigate{% endif %}</span>
         {% endif %}
       </li>
       <li class="phase phase-{{ 'live' if p.checks.live else 'done' }}">
         <span class="phase-name">Checking your official assets</span>
         {% if p.checks.total %}
         <progress max="{{ p.checks.total }}" value="{{ p.checks.finished }}" aria-label="Asset checks finished">{{ p.checks.percent }}%</progress>
-        <span class="phase-detail small muted"><span class="num">{{ p.checks.finished }}/{{ p.checks.total }}</span> checked · {{ p.verified }} verified{% if p.checks.failed %} · <span class="tone-bad">{{ p.checks.failed }} could not finish</span>{% endif %}</span>
+        <span class="phase-detail small muted"><span class="num">{{ p.checks.finished }}/{{ p.checks.total }}</span> checked · {{ p.verified }} verified{% if p.checks.failed %} · <span class="tone-bad">{{ p.checks.failed }} could not finish</span>{% endif %}{% if p.checks.cancelled %} · {{ p.checks.cancelled }} stopped{% endif %}</span>
         {% else %}
         <span class="phase-detail small muted">{% if (s.payload or {}).get("scheduled") %}Scheduled scans skip asset checks{% else %}Nothing to check: every active asset is verified or already being checked{% endif %}</span>
         {% endif %}
@@ -74,8 +76,11 @@
     </details>
     {% endif %}
 
-    {% if not p.active and not compact %}
-    <form class="scan-again" method="post" action="/brands/{{ brand.id }}/scan">{{ m.csrf() }}<button class="btn quiet sm">{{ m.icon("scan") }}{{ "Try again" if p.state == "failed" else "Scan again" }}</button></form>
+    {% if p.active and not compact %}
+    <form class="scan-again" method="post" action="/brands/{{ brand.id }}/scan/stop"
+          data-confirm="Stop the scan of {{ brand.name }}? Findings it already saved are kept.">{{ m.csrf() }}<button class="btn danger sm">Stop scan</button></form>
+    {% elif not compact %}
+    <form class="scan-again" method="post" action="/brands/{{ brand.id }}/scan">{{ m.csrf() }}<button class="btn quiet sm">{{ m.icon("scan") }}{{ "Try again" if p.state == "failed" else ("Start a new scan" if p.state == "stopped" else "Scan again") }}</button></form>
     {% endif %}
     <noscript>{% if p.active %}<p class="small">Reload the page to update progress.</p>{% endif %}</noscript>
   </div>

@@ -1023,7 +1023,7 @@ code.copy { display: inline-block; margin-top: 4px; padding: 4px 7px; background
   .split > aside { grid-template-columns: minmax(0, 1fr); }
   .page-head { align-items: flex-start; }
   .page-head .titles { flex-basis: 100%; }
-  .page-head .actions, .page-head .actions form, .page-head .actions .btn { width: 100%; }
+  .page-head .actions, .page-head .actions form, .page-head .actions .btn, .page-head .scan-btn-group { width: 100%; }
   .section-head { align-items: flex-start; }
   .act-time { margin-left: 0; width: 100%; }
   .expl-meta-grid { grid-template-columns: minmax(0, 1fr); }
@@ -1774,6 +1774,8 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 .scan-results .btn { margin-left: auto; }
 .scan-sources { margin-top: var(--s3); }
 .scan-again { margin-top: var(--s3); }
+.scan-card.state-stopped { border-left-color: var(--rule-3); }
+.scan-btn-group { display: flex; gap: var(--s2); flex-wrap: wrap; align-items: center; }
 .scan-progress.is-compact .scan-card { padding: var(--s3) var(--s4); }
 .scan-progress.is-compact .scan-phases { margin-top: var(--s3); gap: var(--s2); }
 .nowrap { white-space: nowrap; }
