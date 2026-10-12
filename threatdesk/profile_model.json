@@ -1,0 +1,104 @@
+{
+ "version": "20261012212841",
+ "features": [
+  "profile_pic",
+  "username_digit_ratio",
+  "fullname_words",
+  "fullname_digit_ratio",
+  "name_eq_username",
+  "description_length",
+  "external_url",
+  "private",
+  "log_posts",
+  "log_followers",
+  "log_follows"
+ ],
+ "mean": [
+  0.712446,
+  0.166716,
+  1.477825,
+  0.041989,
+  0.035765,
+  23.432046,
+  0.11731,
+  0.369099,
+  2.532076,
+  5.243387,
+  5.198016
+ ],
+ "scale": [
+  0.452622,
+  0.218488,
+  1.074084,
+  0.143279,
+  0.185705,
+  38.489088,
+  0.32179,
+  0.482561,
+  2.148446,
+  2.510461,
+  1.737946
+ ],
+ "coef": [
+  -0.764075,
+  0.81075,
+  -0.223173,
+  0.254977,
+  0.162442,
+  -0.35486,
+  -0.343214,
+  -0.379266,
+  -0.750925,
+  -0.914889,
+  -0.002174
+ ],
+ "intercept": 0.083511,
+ "threshold": 0.52,
+ "trained_at": "2026-10-12T21:28:41+00:00",
+ "training": {
+  "dataset_sha256": "0be5e7299e584dd9930aff6d478a30f3574dcd1ef4c4e88a4367060ffad93c09",
+  "dataset_rows": 699,
+  "analyst_rows": 0,
+  "positive_rate": 0.499,
+  "min_precision_target": 0.95,
+  "held_out_fraction": 0.2,
+  "seed": 7
+ },
+ "metrics": {
+  "cv_train": {
+   "precision": 0.954,
+   "recall": 0.889,
+   "f1": 0.92,
+   "roc_auc": 0.968,
+   "n": 559
+  },
+  "held_out": {
+   "precision": 0.939,
+   "recall": 0.886,
+   "f1": 0.912,
+   "roc_auc": 0.979,
+   "n": 140
+  },
+  "adaboost_reference": {
+   "precision": 0.887,
+   "recall": 0.9,
+   "f1": 0.894,
+   "roc_auc": 0.968,
+   "n": 140
+  },
+  "random_forest_reference": {
+   "precision": 0.899,
+   "recall": 0.886,
+   "f1": 0.892,
+   "roc_auc": 0.968,
+   "n": 140
+  },
+  "previous_model_held_out": {
+   "precision": 0.939,
+   "recall": 0.886,
+   "f1": 0.912,
+   "roc_auc": 0.979,
+   "n": 140
+  }
+ }
+}

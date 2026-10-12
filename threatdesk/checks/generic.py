@@ -3,12 +3,14 @@ from __future__ import annotations
 
 import ipaddress
 import re
+from urllib.parse import urlsplit
 
 from rapidfuzz import fuzz
 
 from threatdesk import constants as C
 from threatdesk.brands import BrandContext, domain_matches
 from threatdesk.indicators import is_shortener
+from threatdesk.pageparse import input_kinds
 from threatdesk.scoring import Scorecard
 
 _PIECE_SPLIT = re.compile(r"[.\-_]+")
@@ -173,6 +175,49 @@ def host_signals(card: Scorecard, host: str, brand: BrandContext) -> dict:
     return out
 
 
+SECRET_INPUTS = {"password", "card", "cvv", "pin", "otp", "aadhaar"}
+# Sign-in and payment services that legitimately receive a password or card form posted from another site.
+FORM_PROCESSORS = ("okta.com", "oktapreview.com", "auth0.com", "onelogin.com", "pingidentity.com", "pingone.com",
+                   "amazoncognito.com", "duosecurity.com", "stripe.com", "razorpay.com", "payu.in", "payu.com",
+                   "ccavenue.com", "billdesk.com", "cashfree.com", "juspay.in", "instamojo.com", "adyen.com",
+                   "braintreegateway.com", "checkout.com", "worldpay.com", "authorize.net", "2checkout.com",
+                   "paytm.in", "phonepe.com", "squareup.com", "myshopify.com", "shopify.com")
+
+
+def _processor(host: str) -> bool:
+    return any(domain_matches(host, d) for d in FORM_PROCESSORS)
+
+
+def form_signals(card: Scorecard, page: dict, brand: BrandContext) -> list[dict]:
+    """Where a page's password/card forms send what people type: to another, unrelated site (phishing kits post
+    to a collector or mail the form) or over plain HTTP. Sign-in and payment services are expected receivers."""
+    from threatdesk.checks.domain import registrable_domain
+    page_url = page.get("final_url") or ""
+    page_reg = registrable_domain((urlsplit(page_url).hostname or "").lower())
+    found: list[dict] = []
+    for form in page.get("forms") or []:
+        kinds = sorted(input_kinds([form]) & SECRET_INPUTS)
+        if not kinds:
+            continue
+        action = (form.get("action") or "").strip()
+        target = action or page_url
+        if action.lower().startswith("mailto:"):
+            found.append({"kinds": kinds, "action": action[:120], "issue": "offsite"})
+            card.add("credential_form_offsite", f"a form asking for {', '.join(kinds)} is e-mailed to "
+                                                f"{action[7:80]}")
+            continue
+        host = (urlsplit(action).hostname or "").lower() if action.startswith(("http://", "https://")) else ""
+        if host and registrable_domain(host) != page_reg and not brand.is_official_host(host) \
+                and not known_official(host) and not _processor(host) and not is_restricted(host):
+            found.append({"kinds": kinds, "action": action[:120], "issue": "offsite"})
+            card.add("credential_form_offsite", f"a form asking for {', '.join(kinds)} submits to {host}")
+        if target.lower().startswith("http://") and not (host and _processor(host)):
+            found.append({"kinds": kinds, "action": target[:120], "issue": "insecure"})
+            card.add("credential_form_insecure", f"a form asking for {', '.join(kinds)} is sent unencrypted to "
+                                                 f"{target[:80]}")
+    return found
+
+
 def page_signals(card: Scorecard, page: dict, link_host: str, brand: BrandContext, parked: bool) -> dict:
     final_host = (page.get("final_host") or link_host or "").lower()
     if brand.is_official_host(final_host) or known_official(final_host) or is_restricted(final_host):
@@ -186,6 +231,8 @@ def page_signals(card: Scorecard, page: dict, link_host: str, brand: BrandContex
     if any(p.search(head) for p in _ABUSE) and (int(page.get("status") or 200) >= 400 or len(text) < 1500):
         card.add("hosting_abuse_block", f"page says: '{title[:80] or text[:80]}'")
         out["abuse_block"] = True
+    if forms := form_signals(card, page, brand):
+        out["credential_forms"] = forms
     if parked or not title:
         return out
     t = _norm_title(title)

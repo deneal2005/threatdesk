@@ -105,6 +105,7 @@ class Settings:
     apify_instagram_about: bool = False
     apify_website_trust: bool = False          # paid third-party website trust report (lofomachines actor)
     apify_trust_daily_limit: int = 20          # at most this many paid trust reports per process per day
+    profile_model: bool = True                 # fake-profile model on Instagram look-alikes (PROFILE_MODEL=off)
     serverless: bool = False
     sentry_dsn: str | None = None
     extra: dict = field(default_factory=dict)
@@ -161,6 +162,7 @@ def load_settings() -> Settings:
         apify_instagram_about=(_get("APIFY_INSTAGRAM_ABOUT") or "").lower() == "true",
         apify_website_trust=(_get("APIFY_WEBSITE_TRUST") or "").lower() == "true",
         apify_trust_daily_limit=max(0, _int("APIFY_TRUST_DAILY_LIMIT", 20)),
+        profile_model=(_get("PROFILE_MODEL") or "on").lower() not in ("off", "false", "0"),
         serverless=serverless, sentry_dsn=_get("SENTRY_DSN"),
     )
 
