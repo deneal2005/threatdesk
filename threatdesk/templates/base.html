@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#F3F4F1">
+<meta name="theme-color" content="#ECEEEA">
 <meta name="htmx-config" content='{"includeIndicatorStyles": false, "allowEval": false, "allowScriptTags": false}'>
 <meta name="color-scheme" content="light">
 <title>{% block title %}ThreatDesk{% endblock %}</title>
@@ -17,6 +17,17 @@
 <a class="skip" href="#content">Skip to content</a>
 {% if user %}
 {% set cur_path = request.url.path %}
+{% set takedowns = "status=takedown_requested" in request.url.query %}
+{% if cur_path == "/" %}{% set section = "Dashboard" %}
+{% elif takedowns %}{% set section = "Actions" %}
+{% elif cur_path.startswith("/findings") %}{% set section = "Findings" %}
+{% elif cur_path.startswith("/investigate") %}{% set section = "Investigate" %}
+{% elif cur_path.startswith("/brands") %}{% set section = "Assets & Brands" %}
+{% elif cur_path.startswith("/campaigns") %}{% set section = "Cases" %}
+{% elif cur_path.startswith("/reports") %}{% set section = "Reports" %}
+{% elif cur_path.startswith("/notifications") %}{% set section = "Alerts" %}
+{% elif cur_path.startswith("/settings") %}{% set section = "Settings" %}
+{% else %}{% set section = "ThreatDesk" %}{% endif %}
 <div class="shell">
   <div class="sidebar-backdrop" aria-hidden="true"></div>
   <nav class="rail-nav" id="sidebar-nav" aria-label="Main Navigation">
@@ -37,7 +48,7 @@
             </a>
           </li>
           <li>
-            <a href="/findings" {% if cur_path.startswith("/findings") and "status=takedown" not in request.url.query %}aria-current="page"{% endif %} title="Triage Queue &amp; Detected Threats">
+            <a href="/findings" {% if cur_path.startswith("/findings") and not takedowns %}aria-current="page"{% endif %} title="Triage Queue &amp; Detected Threats">
               {{ m.icon("findings") }}<span class="lbl">Findings</span>
               {% if new_count %}<span class="count hot" title="{{ new_count }} new">{{ new_count }}</span>{% endif %}
             </a>
@@ -75,7 +86,7 @@
             </a>
           </li>
           <li>
-            <a href="/findings?status=takedown_requested" {% if "status=takedown_requested" in request.url.query %}aria-current="page"{% endif %} title="Pending Takedown Packets &amp; Remediation">
+            <a href="/findings?status=takedown_requested" {% if takedowns %}aria-current="page"{% endif %} title="Pending Takedown Packets &amp; Remediation">
               {{ m.icon("takedown") }}<span class="lbl">Actions</span>
             </a>
           </li>
@@ -86,7 +97,7 @@
         <span class="nav-group-title">ORGANIZATION</span>
         <ul class="nav">
           <li>
-            <a href="/settings#team" {% if cur_path == "/settings" %}aria-current="page"{% endif %} title="Security Team &amp; Access Controls">
+            <a href="/settings#team" title="Security Team &amp; Access Controls">
               {{ m.icon("team") }}<span class="lbl">Team</span>
             </a>
           </li>
@@ -120,12 +131,13 @@
   <div class="shell-content">
     <header class="app-topbar" aria-label="Application Header">
       <div class="topbar-left">
-        <button class="drawer-toggle hide-desktop" type="button" aria-label="Open navigation menu">
+        <button class="drawer-toggle hide-desktop" type="button" aria-label="Open navigation menu" aria-controls="sidebar-nav" aria-expanded="false">
           {{ m.icon("menu") }}
         </button>
         <div class="topbar-context">
-          <span class="context-tag">WORKSPACE</span>
-          <span class="context-name">ThreatDesk</span>
+          <span class="context-tag">Workspace</span>
+          <span class="context-sep" aria-hidden="true">/</span>
+          <span class="context-name">{{ section }}</span>
         </div>
       </div>
 
@@ -134,7 +146,7 @@
           <label for="global-search" class="sr">Search findings</label>
           <div class="topbar-search-wrap">
             {{ m.icon("search") }}
-            <input id="global-search" type="search" name="q" placeholder="Search suspicious domains, URLs, or targets..." autocomplete="off">
+            <input id="global-search" type="search" name="q" placeholder="Search findings by domain, name or URL" autocomplete="off" spellcheck="false">
             <kbd class="kbd-hint" aria-hidden="true">⌘K</kbd>
           </div>
         </form>

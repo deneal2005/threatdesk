@@ -20,6 +20,7 @@
         {{ m.icon("scan") }} Run Discovery Scan ({{ brands[0].name }})
       </button>
     </form>
+    {% if brands|length > 1 %}<a class="btn ghost" href="/brands">All {{ brands|length }} brands</a>{% endif %}
   </div>
   {% endif %}
 </header>
@@ -30,7 +31,7 @@
     <div class="metric-card metric-urgent {% if metrics.high_priority > 0 %}is-active{% endif %}">
       <div class="metric-header">
         <span class="metric-label">High-Priority Threats</span>
-        <span class="metric-indicator indicator-high" aria-hidden="true">▲</span>
+        <span class="metric-indicator indicator-high" aria-hidden="true">{{ m.icon("alert-tri") }}</span>
       </div>
       <div class="metric-value num bold">{{ metrics.high_priority }}</div>
       <p class="metric-caption">Urgent cases needing immediate takedown or response</p>
@@ -40,7 +41,7 @@
     <div class="metric-card metric-triage {% if metrics.requiring_review > 0 %}is-active{% endif %}">
       <div class="metric-header">
         <span class="metric-label">Awaiting Review</span>
-        <span class="metric-indicator indicator-med" aria-hidden="true">◐</span>
+        <span class="metric-indicator indicator-med" aria-hidden="true">{{ m.icon("findings") }}</span>
       </div>
       <div class="metric-value num bold">{{ metrics.requiring_review }}</div>
       <p class="metric-caption"><span class="sr">Awaiting Triage: </span>New leads awaiting human review</p>
@@ -50,7 +51,7 @@
     <div class="metric-card metric-fleet">
       <div class="metric-header">
         <span class="metric-label">Monitored Assets</span>
-        <span class="metric-indicator indicator-jade" aria-hidden="true">🛡️</span>
+        <span class="metric-indicator indicator-jade" aria-hidden="true">{{ m.icon("shield") }}</span>
       </div>
       <div class="metric-value num bold">{{ monitored_assets_count }}</div>
       <p class="metric-caption">Official websites, apps &amp; profiles protected</p>
@@ -60,7 +61,7 @@
     <div class="metric-card metric-total">
       <div class="metric-header">
         <span class="metric-label">Total Findings</span>
-        <span class="metric-indicator indicator-neutral" aria-hidden="true">•</span>
+        <span class="metric-indicator indicator-neutral" aria-hidden="true">{{ m.icon("overview") }}</span>
       </div>
       <div class="metric-value num bold">{{ metrics.total_findings }}</div>
       <p class="metric-caption"><span class="sr">Total Threats Found: </span>Analyzed properties in your organization</p>
@@ -70,11 +71,14 @@
 </section>
 
 {# --- Discovery & Defense Pipeline --- #}
-<section class="pipeline-section sheet pad">
-  <div class="pipeline-header">
-    <span class="eyebrow">Detection &amp; Defense Lifecycle</span>
-    <span class="small muted">How ThreatDesk protects your perimeter</span>
-  </div>
+<details class="pipeline-section sheet" data-remember="dash-pipeline" data-collapse-mobile open>
+  <summary>
+    <span class="pipeline-header">
+      <span class="eyebrow">Detection &amp; Defense Lifecycle</span>
+      <span class="small muted">How ThreatDesk protects your perimeter</span>
+    </span>
+    <span class="pipeline-toggle"><span class="if-open">Hide</span><span class="if-closed">Show</span></span>
+  </summary>
   <div class="pipeline-steps">
     <div class="pipeline-step">
       <div class="step-num">1</div>
@@ -100,7 +104,7 @@
       </div>
     </div>
   </div>
-</section>
+</details>
 
 {# --- Main Operational Workspace: Asymmetric Split --- #}
 <div class="split section">
@@ -118,29 +122,30 @@
 
       {% if total_open > 0 %}
       <div class="distribution-bar" role="img" aria-label="Risk distribution by severity: High: {{ metrics.open['High'] }}, Medium: {{ metrics.open['Medium'] }}, Low: {{ metrics.open['Low'] }}">
-        <div class="dist-seg seg-high" style="width: {{ (metrics.open['High'] / total_open * 100)|round(1) }}%;" title="High Risk: {{ metrics.open['High'] }}"></div>
-        <div class="dist-seg seg-med" style="width: {{ (metrics.open['Medium'] / total_open * 100)|round(1) }}%;" title="Medium Risk: {{ metrics.open['Medium'] }}"></div>
-        <div class="dist-seg seg-low" style="width: {{ (metrics.open['Low'] / total_open * 100)|round(1) }}%;" title="Low Risk: {{ metrics.open['Low'] }}"></div>
+        {% set w_high = (metrics.open['High'] / total_open * 100)|round|int %}{% set w_med = (metrics.open['Medium'] / total_open * 100)|round|int %}
+        {% if metrics.open['High'] %}<div class="dist-seg seg-high w-{{ [w_high, 1]|max }}" title="High Risk: {{ metrics.open['High'] }}"></div>{% endif %}
+        {% if metrics.open['Medium'] %}<div class="dist-seg seg-med w-{{ [w_med, 1]|max }}" title="Medium Risk: {{ metrics.open['Medium'] }}"></div>{% endif %}
+        {% if metrics.open['Low'] %}<div class="dist-seg seg-low w-{{ [100 - w_high - w_med, 1]|max }}" title="Low Risk: {{ metrics.open['Low'] }}"></div>{% endif %}
       </div>
       {% else %}
       <div class="distribution-bar empty-dist" role="img" aria-label="No open findings">
-        <div class="dist-seg seg-empty" style="width: 100%;" title="No active findings"></div>
+        <div class="dist-seg seg-empty w-100" title="No active findings"></div>
       </div>
       {% endif %}
 
       <div class="dist-legend">
         <a class="dist-legend-item" href="/findings?severity=High" title="Filter High Risk">
-          <span class="dist-icon high" aria-hidden="true">▲</span>
+          <span class="dist-icon high" aria-hidden="true"></span>
           <span class="dist-label">High Risk</span>
           <span class="dist-num num bold">{{ metrics.open['High'] }}</span>
         </a>
         <a class="dist-legend-item" href="/findings?severity=Medium" title="Filter Medium Risk">
-          <span class="dist-icon med" aria-hidden="true">◆</span>
+          <span class="dist-icon med" aria-hidden="true"></span>
           <span class="dist-label">Medium Risk</span>
           <span class="dist-num num bold">{{ metrics.open['Medium'] }}</span>
         </a>
         <a class="dist-legend-item" href="/findings?severity=Low" title="Filter Low Risk">
-          <span class="dist-icon low" aria-hidden="true">●</span>
+          <span class="dist-icon low" aria-hidden="true"></span>
           <span class="dist-label">Low Risk</span>
           <span class="dist-num num bold">{{ metrics.open['Low'] }}</span>
         </a>
@@ -160,9 +165,9 @@
           <tr>
             <th class="tight">Risk Level</th>
             <th>Target Asset &amp; Detection Summary</th>
-            <th class="hide-sm">Brand</th>
+            <th class="hide-sm hide-md">Brand</th>
             <th class="hide-sm tight">Status</th>
-            <th class="tight hide-sm">Detected</th>
+            <th class="tight hide-sm hide-md">Detected</th>
             <th class="tight"><span class="sr">Action</span></th>
           </tr>
         </thead>
@@ -176,11 +181,11 @@
               <a class="cell-main defanged" href="/findings/{{ f.id }}">{{ f.display_name|dfg }}</a>
               <span class="cell-sub">{{ f.kind|kind }} · {{ f.verdict }} · {{ f.source|source }}</span>
             </td>
-            <td class="hide-sm">{{ names.get(f.brand_id, "-") }}</td>
+            <td class="hide-sm hide-md">{{ names.get(f.brand_id, "-") }}</td>
             <td class="hide-sm tight">
               {{ m.status(f.status) }}
             </td>
-            <td class="tight faint hide-sm" title="{{ f.last_seen|dt }}">{{ f.last_seen|ago }}</td>
+            <td class="tight faint hide-sm hide-md" title="{{ f.last_seen|dt }}">{{ f.last_seen|ago }}</td>
             <td class="tight">
               <a class="btn quiet sm" href="/findings/{{ f.id }}">Review →</a>
             </td>
@@ -280,25 +285,6 @@
       {% endwith %}
     </div>
 
-    {# --- Brand Discovery Action --- #}
-    {% if brands %}
-    <div class="sheet pad">
-      <div class="panel-head-compact">
-        <span class="eyebrow">Perimeter Discovery</span>
-        <h3 class="panel-title-sm">Scan Registered Brands</h3>
-      </div>
-      <p class="small muted">Trigger automated scanning across domain registries, certificate logs, and stores for {{ brands[0].name }}.</p>
-      <form method="post" action="/brands/{{ brands[0].id }}/scan">
-        {{ m.csrf() }}
-        <button class="btn full sm" type="submit">
-          {{ m.icon("scan") }} Scan for {{ brands[0].name }}
-        </button>
-      </form>
-      {% if brands|length > 1 %}
-      <a class="small faint block mt-2" href="/brands">View all {{ brands|length }} registered brands →</a>
-      {% endif %}
-    </div>
-    {% endif %}
 
     {# --- Response & Efficiency --- #}
     <div class="sheet pad">

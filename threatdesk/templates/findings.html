@@ -109,7 +109,7 @@
 </div>
 
 {% if rows %}
-<form method="post" action="/findings/bulk" onsubmit="return confirm('Are you sure you want to mark the selected finding(s) as false positives?');">
+<form method="post" action="/findings/bulk" data-confirm="Mark the selected findings as false positives?">
   {{ m.csrf() }}
   <div class="table-wrap">
     <table>
@@ -120,8 +120,8 @@
           <th class="tight">Score</th>
           <th>Finding &amp; Detection Summary</th>
           <th class="hide-sm">Status</th>
-          <th class="hide-sm">Brand</th>
-          <th class="tight hide-sm">Last seen</th>
+          <th class="hide-sm hide-md">Brand</th>
+          <th class="tight hide-sm hide-md">Last seen</th>
         </tr>
       </thead>
       <tbody>
@@ -150,8 +150,8 @@
           <td class="hide-sm">
             {{ m.status(f.status) }}
           </td>
-          <td class="hide-sm">{{ names.get(f.brand_id, "-") }}</td>
-          <td class="tight faint hide-sm" title="{{ f.last_seen|dt }}">{{ f.last_seen|ago }}</td>
+          <td class="hide-sm hide-md">{{ names.get(f.brand_id, "-") }}</td>
+          <td class="tight faint hide-sm hide-md" title="{{ f.last_seen|dt }}">{{ f.last_seen|ago }}</td>
         </tr>
       {% endfor %}
       </tbody>

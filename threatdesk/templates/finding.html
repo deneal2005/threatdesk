@@ -2,7 +2,7 @@
 {% import "macros.html" as m with context %}
 {% block title %}Case {{ "%04d"|format(f.id) }} · ThreatDesk{% endblock %}
 {% block content %}
-<p class="small"><a href="/findings">← Findings</a></p>
+<p class="small case-nav"><a href="/findings">← Findings</a><a class="jump-actions" href="#case-actions">Case actions ↓</a></p>
 <div class="split">
   <div>
     {% include "_report.html" %}
@@ -21,7 +21,7 @@
     {% endif %}
   </div>
 
-  <aside>
+  <aside id="case-actions">
     <div class="sheet pad">
       <div class="now"><span class="small muted">Status</span> {{ m.status(f.status) }}</div>
       {% if moves %}
