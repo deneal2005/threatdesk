@@ -63,6 +63,7 @@ SUSPICIOUS_RULES = {
     "brand_mention_unofficial", "scam_phrases", "contact_bait", "known_brand_unofficial",
     "app_impersonation", "app_dangerous_permissions", "app_low_ratings", "app_no_privacy_policy",
     "icon_matches_logo", "handle_similar", "name_similar", "ai_assessment",
+    "credential_form_offsite", "credential_form_insecure", "profile_model_fake",
 }
 
 MALICIOUS_RULES = {

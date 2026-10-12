@@ -17,6 +17,7 @@ API = "https://api.apify.com/v2/acts/{actor}/run-sync-get-dataset-items"
 MAX_CHARGE_USD = 0.05
 RUN_TIMEOUT = 90
 CACHE_TTL = 24 * 3600
+FAKE_PROFILE_MIN = 0.8     # the model must be this sure before it adds points (public training data, not yours)
 ACTORS = {"instagram": "apify~instagram-profile-scraper", "tiktok": "clockworks~tiktok-profile-scraper",
           "facebook": "apify~facebook-pages-scraper"}
 _cache: dict[tuple[str, str], tuple[float, tuple[str, dict | None]]] = {}
@@ -87,6 +88,16 @@ async def _run(ctx: Ctx, platform: str, handle: str) -> tuple[str, dict | None]:
     return result
 
 
+def _fake_profile(ctx: Ctx, item: dict) -> dict | None:
+    """Fake-profile model on a look-alike Instagram account; scored only at high confidence (weak context)."""
+    from threatdesk import profile_model
+    pred = profile_model.predict(profile_model.instagram_features(item))
+    if pred and pred["probability"] >= max(pred["threshold"], FAKE_PROFILE_MIN):
+        ctx.card.add("profile_model_fake", f"model rates the account {pred['probability']:.0%} likely fake "
+                                           f"({', '.join(pred['drivers']) or 'overall profile shape'})")
+    return pred
+
+
 async def check_apify_profile(ctx: Ctx):
     if not ctx.settings.apify_token:
         return ctx.not_configured("social_profile", "APIFY_TOKEN")
@@ -107,6 +118,9 @@ async def check_apify_profile(ctx: Ctx):
     ctx.facts.pop("affiliation", None)             # the profile reader sees more (badge, links): judge again
     det.update(await _affiliation(ctx, platform, prof["handle"] or handle, prof["name"] or "", prof["bio"] or "",
                                   prof["links"], bool(prof.get("verified"))))
+    if platform == "instagram" and ctx.settings.profile_model and not det.get("official") and             ("similar_to" in det or det.get("name_similar")):
+        if (fake := _fake_profile(ctx, item)) is not None:
+            det["fake_profile_model"] = fake
     if platform == "instagram" and prof.get("joined_recently") and not prof["created"] and \
             ("similar_to" in det or det.get("name_similar")):
         ctx.card.add("account_lt_90d", "Instagram shows 'joined recently' on a profile that resembles the brand")

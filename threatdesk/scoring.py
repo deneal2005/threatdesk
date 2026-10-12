@@ -52,6 +52,9 @@ RULES: dict[str, tuple[int, str]] = {
     "server_hostname": (15, "bare IP address or a hosting provider's default server name"),
     "phishing_words_in_domain": (10, "domain name contains login/verify/account-style words"),
     "lure_title": (15, "page title is a common phishing lure (voice mail, PDF viewer, verification...)"),
+    "credential_form_offsite": (20, "a password/card form submits to a different, non-official site (typical of "
+                                    "phishing kits)"),
+    "credential_form_insecure": (10, "a password/card form is sent over plain HTTP (unencrypted)"),
     "hosting_abuse_block": (40, "the hosting provider has blocked this site for phishing/malware"),
     # reputation
     "safe_browsing_hit": (40, "listed by Google Safe Browsing"),
@@ -78,6 +81,8 @@ RULES: dict[str, tuple[int, str]] = {
     "account_lt_365d": (10, "account created less than a year ago"),
     "low_followers": (5, "very small audience for a brand account"),
     "bio_link_lookalike": (20, "profile links to a non-official site whose name imitates the brand"),
+    "profile_model_fake": (10, "fake-profile model (trained on public Instagram data) rates this look-alike account "
+                               "as a likely fake or throwaway account"),
     "platform_verified": (-10, "the platform shows a verified badge (often an unlisted official or partner account)"),
     "established_account": (-15, "established account: 2+ years old with 10,000+ followers"),
     "linked_from_official_site": (-50, "an official brand website links to this account (the brand published it)"),
@@ -130,7 +135,7 @@ REPUTATION = {"safe_browsing_hit", "virustotal_malicious", "virustotal_suspiciou
               "phishtank_verified", "scam_list_hit", "hosting_abuse_block"}
 CONTENT = {"asks_credentials", "payment_only_risky", "urgency", "big_discount", "earn_loan_claims",
            "missing_policy_pages", "claims_official", "brand_mention_unofficial", "scam_phrases", "contact_bait",
-           "lure_title", "app_dangerous_permissions", "bio_link_lookalike"}
+           "lure_title", "app_dangerous_permissions", "bio_link_lookalike", "credential_form_offsite"}
 CATEGORY_LABELS = {"identity": "Name similarity", "visual": "Copied branding", "content": "Content and behaviour",
                    "reputation": "Reputation lists", "context": "Account and registration context",
                    "counter": "Counter-evidence", "ai": "AI (bounded)"}
@@ -167,8 +172,9 @@ CORROBORATION_MIN = 10
 LEGITIMACY = {"platform_verified", "established_account", "regional_variant", "links_to_official_site"}
 LEGITIMACY_WEAKENS = {"claims_official"}
 # A single VirusTotal engine (of ~90) is noise: it adds its points but never corroborates a name match alone.
+# The fake-profile model describes the account (throwaway-looking), not impersonation: same treatment.
 WEAK_CONTEXT = {"no_archive_history", "registrant_redacted", "tls_invalid", "tls_new_cert", "redirect_offsite",
-                "missing_policy_pages", "low_followers", "virustotal_suspicious"}
+                "missing_policy_pages", "low_followers", "virustotal_suspicious", "profile_model_fake"}
 
 
 def hard_evidence(codes: set[str]) -> bool:
