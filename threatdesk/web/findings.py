@@ -35,6 +35,7 @@ def list_findings(request: Request, user: User = Depends(current_user), db: Sess
         view = "all"
     brand_id, severity, source = _int(p.get("brand_id")), p.get("severity", ""), p.get("source", "")
     since, reported = p.get("since") == "1", p.get("reported") == "1"
+    query_str = p.get("q", "").strip()
     base = scoped(Finding, user.org_id).where(Finding.in_triage.is_(True))
     if brand_id:
         base = base.where(Finding.brand_id == brand_id)
@@ -44,6 +45,10 @@ def list_findings(request: Request, user: User = Depends(current_user), db: Sess
         base = base.where(Finding.source == source)
     if reported:
         base = base.where(Finding.is_user_submitted.is_(True))
+    if query_str:
+        base = base.where(
+            Finding.display_name.ilike(f"%{query_str}%") | Finding.url.ilike(f"%{query_str}%")
+        )
     last_visit = user.last_findings_visit
     if since and last_visit:
         base = base.where(Finding.first_seen > last_visit)
@@ -57,12 +62,12 @@ def list_findings(request: Request, user: User = Depends(current_user), db: Sess
     if not since:
         user.last_findings_visit = utcnow()
         db.commit()
-    filtered = bool(brand_id or severity or source or since or reported or status)
+    filtered = bool(brand_id or severity or source or since or reported or status or query_str)
     return render(request, "findings.html", {
         "rows": rows, "view": view, "views": VIEWS, "counts": counts, "brands": brands,
         "names": {b.id: b.name for b in brands}, "sources": sources, "brand_id": brand_id, "severity": severity,
         "status_f": status, "source": source, "since": since, "reported": reported, "last_visit": last_visit,
-        "filtered": filtered, "statuses": list(cases.TRANSITIONS)})
+        "filtered": filtered, "statuses": list(cases.TRANSITIONS), "query_str": query_str})
 
 
 @router.get("/findings/{fid:int}")
