@@ -44,7 +44,7 @@
   {% if rows %}
   <div class="table-wrap">
     <table>
-      <thead><tr><th class="tight"><span class="sr">Select</span></th><th class="tight">Score</th><th>Finding</th><th class="hide-sm">Status</th><th class="hide-sm">Brand</th><th class="tight">Last seen</th></tr></thead>
+      <thead><tr><th class="tight"><span class="sr">Select</span></th><th class="tight">Score</th><th>Finding</th><th class="hide-sm">Status</th><th class="hide-sm">Brand</th><th class="tight hide-sm">Last seen</th></tr></thead>
       <tbody>
       {% for f in rows %}
         <tr>
@@ -54,7 +54,7 @@
             <span class="cell-sub">{{ f.kind|kind }} · {{ f.verdict }} · {{ f.source|source }}{% if f.is_user_submitted %} <span class="tagline user">reported</span>{% endif %}</span></td>
           <td class="hide-sm">{{ m.status(f.status) }}</td>
           <td class="hide-sm">{{ names.get(f.brand_id, "-") }}</td>
-          <td class="tight faint" title="{{ f.last_seen|dt }}">{{ f.last_seen|ago }}</td>
+          <td class="tight faint hide-sm" title="{{ f.last_seen|dt }}">{{ f.last_seen|ago }}</td>
         </tr>
       {% endfor %}
       </tbody>
