@@ -1,3 +1,4 @@
+{% import "macros.html" as m with context %}
 {# Big paste box shared by Overview and Investigate. Expects: brands, placeholder, server_note (bool), value, brand_id #}
 <form method="post" action="/investigate">
   {{ m.csrf() }}

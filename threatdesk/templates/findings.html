@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block title %}Findings · ThreatDesk{% endblock %}
+{% block content %}
+{% set keep %}{% if brand_id %}&amp;brand_id={{ brand_id }}{% endif %}{% if severity %}&amp;severity={{ severity }}{% endif %}{% if source %}&amp;source={{ source|urlencode }}{% endif %}{% if since %}&amp;since=1{% endif %}{% if reported %}&amp;reported=1{% endif %}{% endset %}
+<header class="page-head">
+  <div class="titles">
+    <span class="eyebrow">Findings</span>
+    <h1>Triage</h1>
+  </div>
+  <div class="actions">
+    <a class="btn ghost" href="/reports/findings.csv{% if brand_id %}?brand_id={{ brand_id }}{% endif %}">{{ m.icon("download") }}Export CSV</a>
+  </div>
+</header>
+
+<div class="toolbar">
+  <nav class="tabs" aria-label="Views">
+    {% for key, label in views %}
+    <a href="/findings?view={{ key }}{{ keep }}" {% if view == key and not status_f %}aria-current="page"{% endif %}>{{ label }}<span class="num">{{ counts[key] }}</span></a>
+    {% endfor %}
+  </nav>
+  <details class="filter-toggle" {% if filtered %}open{% endif %}>
+    <summary class="btn quiet sm">Filter{% if filtered %} · on{% endif %}</summary>
+    <form class="sheet filter-panel" method="get" action="/findings">
+      <input type="hidden" name="view" value="{{ view }}">
+      <div class="field"><label for="f-brand">Brand</label>
+        <select id="f-brand" name="brand_id"><option value="">Any brand</option>{% for b in brands %}<option value="{{ b.id }}" {% if brand_id == b.id %}selected{% endif %}>{{ b.name }}</option>{% endfor %}</select></div>
+      <div class="field"><label for="f-sev">Severity</label>
+        <select id="f-sev" name="severity"><option value="">Any severity</option>{% for s in ("High", "Medium", "Low") %}<option {% if severity == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></div>
+      <div class="field"><label for="f-status">Status</label>
+        <select id="f-status" name="status"><option value="">Any in this view</option>{% for s in statuses %}<option value="{{ s }}" {% if status_f == s %}selected{% endif %}>{{ s|status }}</option>{% endfor %}</select></div>
+      <div class="field"><label for="f-source">Found by</label>
+        <select id="f-source" name="source"><option value="">Any source</option>{% for s in sources %}<option value="{{ s }}" {% if source == s %}selected{% endif %}>{{ s|source }}</option>{% endfor %}</select></div>
+      <label class="check"><input type="checkbox" name="since" value="1" {% if since %}checked{% endif %}> New since my last visit{% if last_visit %} ({{ last_visit|ago }}){% endif %}</label>
+      <label class="check"><input type="checkbox" name="reported" value="1" {% if reported %}checked{% endif %}> Customer reports only</label>
+      <button class="btn sm">Apply</button>
+      <a class="btn ghost sm" href="/findings?view={{ view }}">Clear</a>
+    </form>
+  </details>
+</div>
+
+<form method="post" action="/findings/bulk">
+  {{ m.csrf() }}
+  {% if rows %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th class="tight"><span class="sr">Select</span></th><th class="tight">Score</th><th>Finding</th><th class="hide-sm">Status</th><th class="hide-sm">Brand</th><th class="tight">Last seen</th></tr></thead>
+      <tbody>
+      {% for f in rows %}
+        <tr>
+          <td class="tight"><input class="rowcheck" type="checkbox" name="ids" value="{{ f.id }}" aria-label="Select {{ f.display_name|dfg }}"></td>
+          <td class="tight">{{ m.score(f) }}</td>
+          <td><a class="cell-main defanged" href="/findings/{{ f.id }}">{{ f.display_name|dfg }}</a>
+            <span class="cell-sub">{{ f.kind|kind }} · {{ f.verdict }} · {{ f.source|source }}{% if f.is_user_submitted %} <span class="tagline user">reported</span>{% endif %}</span></td>
+          <td class="hide-sm">{{ m.status(f.status) }}</td>
+          <td class="hide-sm">{{ names.get(f.brand_id, "-") }}</td>
+          <td class="tight faint" title="{{ f.last_seen|dt }}">{{ f.last_seen|ago }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if rows|length >= 500 %}<p class="small muted section-gap">Showing the first 500. Narrow the filters to see the rest.</p>{% endif %}
+  <div class="bulkbar" role="region" aria-label="Bulk actions">
+    <span class="picked" aria-hidden="true"></span>
+    <div class="field"><label for="bulk-reason">Mark as false positive. Reason</label>
+      <input id="bulk-reason" name="reason" placeholder="e.g. owned by the brand" maxlength="1000"></div>
+    <label class="check"><input type="checkbox" name="whitelist" value="1"> Add to allow list so scans skip them</label>
+    <button class="btn">Mark false positive</button>
+  </div>
+  {% elif filtered %}
+  <div class="empty"><h3>No findings match these filters</h3><p>Clear a filter or two to see more.</p><a class="btn quiet" href="/findings">Clear filters</a></div>
+  {% elif view == "all" %}
+  <div class="empty"><h3>No findings yet</h3><p>Findings come from scans, customer reports and investigations you save.</p><a class="btn quiet" href="/brands">Go to brands</a></div>
+  {% else %}
+  <div class="empty"><h3>Nothing open</h3><p>Every finding has been dealt with. New ones from scans and customer reports will appear here.</p><a class="btn quiet" href="/findings?view=all">See all findings</a></div>
+  {% endif %}
+</form>
+{% endblock %}

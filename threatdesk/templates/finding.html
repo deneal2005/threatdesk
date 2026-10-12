@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block title %}Case {{ "%04d"|format(f.id) }} · ThreatDesk{% endblock %}
+{% block content %}
+<p class="small"><a href="/findings">← Findings</a></p>
+<div class="split">
+  <div>
+    {% include "_report.html" %}
+    {% if intakes %}
+    <section class="section">
+      <div class="section-head"><h2>Customer reports</h2><span class="small muted">What members of the public sent</span></div>
+      <ul class="rows sheet">
+        {% for r in intakes %}
+        <li><span class="grow"><strong class="mono">R-{{ r.id }}</strong> <span class="small faint">{{ r.created|ago }}</span>
+          {% if r.url %}<span class="cell-sub defanged">{{ r.url|defang }}</span>{% endif %}
+          {% if r.text %}<span class="cell-sub clamp-2">{{ r.text|dfg }}</span>{% endif %}</span>
+          {% if r.reporter_contact %}<span class="small muted">{{ r.reporter_contact }}</span>{% endif %}</li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+  </div>
+
+  <aside>
+    <div class="sheet pad">
+      <div class="now"><span class="small muted">Status</span> {{ m.status(f.status) }}</div>
+      {% if moves %}
+      <form method="post" action="/findings/{{ f.id }}/status">
+        {{ m.csrf() }}
+        <fieldset class="field">
+          <legend class="label">Move to</legend>
+          <div class="choices">
+            {% for to in moves %}<label class="choice" title="{{ STATUS_HELP.get(to, '') }}"><input type="radio" name="to" value="{{ to }}" {% if loop.first %}checked{% endif %}><span>{{ to|status }}</span></label>{% endfor %}
+          </div>
+        </fieldset>
+        <div class="field"><label for="reason">Reason</label>
+          <input id="reason" name="reason" placeholder="What did you see?" maxlength="1000" required></div>
+        {% if f.brand_id and "false_positive" in moves %}
+        <label class="check reveal-fp field"><input type="checkbox" name="whitelist" value="1"> Also add this asset to the brand's allow list</label>
+        {% endif %}
+        <button class="btn">Update status</button>
+      </form>
+      {% endif %}
+      <div class="aside-sep"></div>
+      <form class="inline-fields" method="post" action="/findings/{{ f.id }}/assign">
+        {{ m.csrf() }}
+        <div class="field"><label for="assignee">Assignee</label>
+          <select id="assignee" name="assignee_id"><option value="">Unassigned</option>
+            {% for u in users %}<option value="{{ u.id }}" {% if f.assignee_id == u.id %}selected{% endif %}>{{ u.email }}</option>{% endfor %}
+          </select></div>
+        <button class="btn quiet">Assign</button>
+      </form>
+      <div class="aside-sep"></div>
+      <a class="btn quiet" href="/findings/{{ f.id }}/takedown">{{ m.icon("download") }}Takedown packet</a>
+    </div>
+
+    <div class="sheet pad">
+      <h3 class="panel-title">Case history</h3>
+      {% if events %}
+      <ol class="timeline">
+        {% for e in events %}
+        <li class="t-{{ e.type }}"><span class="when" title="{{ e.at|dt }}">{{ e.at|ago }} · {{ emails.get(e.user_id, "ThreatDesk") }}</span>
+          {% if e.type == "status" %}<strong>{{ e.body|replace(" -> ", " → ") }}</strong>{% elif e.type == "assign" %}{{ e.body }}{% else %}{{ e.body|dfg }}{% endif %}</li>
+        {% endfor %}
+      </ol>
+      {% else %}<p class="small muted">Nothing yet. Status changes, comments and takedown requests are recorded here.</p>{% endif %}
+      <form method="post" action="/findings/{{ f.id }}/comment">
+        {{ m.csrf() }}
+        <label class="sr" for="comment">Comment</label>
+        <textarea id="comment" name="body" placeholder="Add a note for your team" maxlength="4000" required></textarea>
+        <p class="section-gap"><button class="btn quiet sm">Add comment</button></p>
+      </form>
+      <dl class="kv small section-gap"><dt>First seen</dt><dd>{{ f.first_seen|dt }}</dd><dt>Last seen</dt><dd>{{ f.last_seen|dt }}</dd></dl>
+    </div>
+  </aside>
+</div>
+{% endblock %}

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "threatdesk",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": ["-m", "uvicorn", "threatdesk.main:app", "--port", "8000", "--workers", "1"],
+      "port": 8000
+    }
+  ]
+}

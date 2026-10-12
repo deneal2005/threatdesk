@@ -56,7 +56,7 @@
       <span class="eyebrow">Open findings</span>
       <div class="figures">
         {% for sev in ("High", "Medium", "Low") %}
-        <div><a class="lbl" href="/findings?severity={{ sev }}">{{ sev }}</a><span class="fig">{{ metrics.open[sev] }}</span></div>
+        <div><a href="/findings?severity={{ sev }}">{{ sev }}</a><span class="fig">{{ metrics.open[sev] }}</span></div>
         {% endfor %}
       </div>
     </div>

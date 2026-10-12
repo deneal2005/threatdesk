@@ -1,0 +1,107 @@
+{% import "macros.html" as m with context %}
+{% set vc = f.verdict|verdict_class %}
+<header class="case-head">
+  <span class="eyebrow">Case {{ "%04d"|format(f.id) }}<span class="sep">/</span>{{ f.kind|kind }}{% if brand %}<span class="sep">/</span><a href="/brands/{{ brand.id }}">{{ brand.name }}</a>{% endif %}<span class="sep">/</span>{{ f.source|source }}{% if f.is_user_submitted %} <span class="tagline user">Reported by a customer</span>{% endif %}</span>
+  <h1 class="artifact">{{ f.display_name|dfg }}</h1>
+  {% if f.url and (f.url|defang) != (f.display_name|dfg) %}<div class="defanged small">{{ f.url|defang }}</div>{% endif %}
+  <div class="verdict-line">
+    <span class="verdict verdict-{{ vc }}">{{ f.verdict }}</span>
+    {% if vc != "excluded" %}<span class="score-big"><span class="num">{{ f.score }}</span><span class="faint">/100</span></span>{{ m.sev(f.severity) }}{% endif %}
+    <span class="small muted">{{ counts.ran }} of {{ counts.total }} checks ran</span>
+  </div>
+  {% if vc == "excluded" %}
+  <p class="note">This is one of the brand's official or allowed assets, so it is not scored.</p>
+  {% else %}
+  {{ m.score_rail(signals, f) }}
+  {% endif %}
+  {% if vc == "insufficient" %}
+  <p class="note">Only {{ counts.ran }} check{{ "s" if counts.ran != 1 }} could run, so there is not enough evidence for a verdict.{% if f.kind == "social_profile" %} Add the profile details below to complete it.{% endif %} That is not proof it's genuine.</p>
+  {% endif %}
+  {% if not f.in_triage %}
+  <form class="save-bar" method="post" action="/findings/{{ f.id }}/save">{{ m.csrf() }}
+    <button class="btn">Save as finding</button><span class="small muted">Saved findings appear in triage and can be tracked as a case.</span>
+  </form>
+  {% endif %}
+</header>
+
+{% if vc != "excluded" %}
+<section class="section">
+  <div class="section-head"><h2>Why it was flagged</h2><span class="small muted">Each line adds to the score above</span></div>
+  {% if signals %}
+  <div class="sheet">
+    <ol class="ledger pad-x sev-{{ f.severity|lower }}-r">
+      {% for s in positives %}
+      <li class="t{{ (loop.index0 % 4) + 1 }}"><span class="pts">+{{ s.points }}</span>
+        <div><div class="rule-name">{{ rules[s.code][1]|sentence if s.code in rules else s.code }}</div><div class="ev">{{ s.evidence|dfg }}</div></div></li>
+      {% endfor %}
+      {% for s in negatives %}
+      <li class="neg"><span class="pts">{{ s.points }}</span>
+        <div><div class="rule-name">{{ rules[s.code][1]|sentence if s.code in rules else s.code }}</div><div class="ev">{{ s.evidence|dfg }}</div></div></li>
+      {% endfor %}
+    </ol>
+  </div>
+  {% else %}
+  <div class="empty slim"><h3>No warning signs found</h3><p>None of the checks that ran found a warning sign. That is not proof it's genuine: read the evidence below before you decide.</p></div>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if f.ai_json and f.ai_json.get("status") == "ok" %}
+{% set ai = f.ai_json %}
+<section class="section">
+  <div class="section-head"><h2>AI read <span class="tagline ai">AI · does not set the score</span></h2><span class="small muted">{{ ai.category|replace("_", " ")|sentence }} · likelihood {{ ai.scam_likelihood }}</span></div>
+  <div class="sheet pad ai-read">
+    <p>{{ ai.summary|dfg }}</p>
+    {% if ai.next_steps %}
+    <span class="eyebrow">Suggested next steps</span>
+    <ul class="steps-list">{% for s in ai.next_steps %}<li>{{ s|dfg }}</li>{% endfor %}</ul>
+    {% endif %}
+  </div>
+</section>
+{% endif %}
+
+{% if f.kind == "social_profile" %}{% include "_profile_details.html" %}{% endif %}
+
+<section class="section">
+  <div class="section-head"><h2>Checks</h2><span class="small muted">{{ counts.ran }} ran{% if counts.not_possible %} · {{ counts.not_possible }} couldn't run{% endif %}{% if counts.not_configured %} · {{ counts.not_configured }} not configured{% endif %}</span></div>
+  <ul class="checks sheet">
+    {% for c in checks %}
+    <li>
+      <span class="name">{{ c.check|check }}</span>
+      <span class="cs cs-{{ c.status }}">{{ c.status|check_status }}</span>
+      <span class="what">{{ check_summary(c.check, c.status, c.detail)|dfg }}</span>
+      {% if c.status == "ran" %}<details><summary>Raw data</summary><pre class="raw">{{ c.detail|pjson|dfg }}</pre></details>{% else %}<span></span>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+
+{% if indicators %}
+<section class="section">
+  <div class="section-head"><h2>Indicators</h2><span class="small muted">Used to link related findings into campaigns</span></div>
+  <div class="sheet pad">
+    <dl class="kv">
+      {% for t, values in indicators.items() %}
+      <dt>{{ t|indicator }}</dt><dd class="chipline">{% for v in values %}<span class="tagline">{{ v|dfg }}</span>{% endfor %}</dd>
+      {% endfor %}
+    </dl>
+  </div>
+</section>
+{% endif %}
+
+{% if evidence %}
+<section class="section">
+  <div class="section-head"><h2>Evidence captures</h2><span class="small muted">Append-only. Each capture is hashed when it is taken.</span></div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th class="tight">Capture</th><th>What</th><th class="hide-sm">Captured</th><th>SHA-256</th></tr></thead>
+      <tbody>
+      {% for e in evidence %}
+        <tr><td class="tight num">#{{ e.id }}</td><td>{{ e.kind|evidence_kind }}</td><td class="hide-sm nowrap">{{ e.captured_at|dt }}</td>
+          <td class="mono faint" title="{{ e.sha256 }}">{{ e.sha256[:16] }}…</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}

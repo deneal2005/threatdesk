@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block title %}Investigate · ThreatDesk{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div class="titles">
+    <span class="eyebrow">Investigate</span>
+    <h1>What did someone send you?</h1>
+    <p class="lede">Paste a website, Play or App Store app, YouTube channel, Telegram or Bluesky account, or an Instagram, X or Facebook profile.</p>
+  </div>
+</header>
+
+{% with placeholder="hxxps://example[.]com/login", server_note=True, autofocus=True %}
+{% include "_paste.html" %}
+{% endwith %}
+
+<section class="section">
+  <div class="section-head"><h2>Your recent investigations</h2></div>
+  {% if recent %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Link</th><th class="tight">Result</th><th class="tight">When</th><th class="tight"><span class="sr">Delete</span></th></tr></thead>
+      <tbody>
+      {% for job, f in recent %}
+        <tr>
+          <td><a class="cell-main defanged" href="/investigate/jobs/{{ job.id }}">{{ (job.payload or {}).get("url")|defang }}</a></td>
+          <td class="tight">
+            {% if job.status in ("queued", "running") %}<span class="small muted">Checking…</span>
+            {% elif job.status == "failed" %}<span class="verdict-chip verdict-medium">Failed</span>
+            {% elif f %}<span class="verdict-chip verdict-{{ f.verdict|verdict_class }}">{{ f.verdict }}</span> <span class="num small faint">{{ f.score }}</span>
+            {% elif (job.result or {}).get("skipped") %}<span class="small muted">Skipped</span>
+            {% else %}<span class="small muted">No finding</span>{% endif %}
+          </td>
+          <td class="tight faint" title="{{ job.created|dt }}">{{ job.created|ago }}</td>
+          <td class="tight">
+            {% if job.status not in ("queued", "running") %}
+            <form method="post" action="/investigate/jobs/{{ job.id }}/delete">{{ m.csrf() }}<button class="btn ghost sm" aria-label="Delete this investigation">Delete</button></form>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty slim">
+    <h3>Nothing investigated yet</h3>
+    <p>Each investigation runs every check that fits the link and keeps the evidence, even if you never save it as a finding.</p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

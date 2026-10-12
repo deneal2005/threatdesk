@@ -1,0 +1,29 @@
+{% import "macros.html" as m with context %}
+<section class="section">
+  <details class="sheet pad disclose" {% if counts.ran < 2 %}open{% endif %}>
+    <summary><span class="section-head"><h2>Profile details <span class="tagline user">User-supplied, unverified</span></h2><span class="small muted">What you can see on the profile</span></span></summary>
+    <p class="small muted">Instagram, X and Facebook hide profiles from automated checks. Copy what the profile shows; every rule it triggers is labelled as user-supplied.</p>
+    <form method="post" action="/findings/{{ f.id }}/profile-details" enctype="multipart/form-data">
+      {{ m.csrf() }}
+      <div class="cols-2">
+        <div class="field"><label for="pd-name">Display name</label><input id="pd-name" name="display_name" maxlength="120"></div>
+        <div class="field"><label for="pd-joined">Joined (as shown)</label><input id="pd-joined" name="joined" maxlength="60" placeholder="March 2026"></div>
+      </div>
+      <div class="field"><label for="pd-bio">Bio</label><textarea id="pd-bio" name="bio" maxlength="2000" rows="3"></textarea></div>
+      <div class="cols-2">
+        <div class="field"><label for="pd-followers">Followers</label><input id="pd-followers" name="followers" maxlength="20" placeholder="1,204 or 12.5k"></div>
+        <div class="field"><label for="pd-following">Following</label><input id="pd-following" name="following" maxlength="20"></div>
+        <div class="field"><label for="pd-posts">Posts</label><input id="pd-posts" name="posts" maxlength="20"></div>
+        <div class="field"><label for="pd-link">Link in bio</label><input id="pd-link" name="link_in_bio" maxlength="500" placeholder="hxxps://…"></div>
+      </div>
+      <fieldset class="field"><legend class="label">Verified badge</legend>
+        <div class="choices">
+          <label class="choice"><input type="radio" name="verified_badge" value="unknown" checked><span>Not sure</span></label>
+          <label class="choice"><input type="radio" name="verified_badge" value="yes"><span>Yes</span></label>
+          <label class="choice"><input type="radio" name="verified_badge" value="no"><span>No</span></label>
+        </div></fieldset>
+      <div class="field"><label for="pd-photo">Profile photo <span class="opt">(optional, PNG or JPG, 1 MB)</span></label><input id="pd-photo" name="photo" type="file" accept="image/png,image/jpeg"></div>
+      <button class="btn">Add profile details</button>
+    </form>
+  </details>
+</section>

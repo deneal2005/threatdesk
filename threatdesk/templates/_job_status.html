@@ -1,0 +1,21 @@
+{% import "macros.html" as m with context %}
+<div id="job-{{ job.id }}"{% if job.status in ("queued", "running") %} hx-get="/investigate/jobs/{{ job.id }}/status" hx-trigger="every 2s" hx-swap="outerHTML"{% endif %}>
+{% if job.status in ("queued", "running") %}
+  <div class="sheet scanning" aria-live="polite">
+    <span class="eyebrow">{{ "Checking now" if job.status == "running" else "Waiting for a free worker" }}{% if job.attempts > 1 %}<span class="sep">/</span>attempt {{ job.attempts }}{% endif %}</span>
+    <div class="defanged">{{ (job.payload or {}).get("url")|defang }}</div>
+    <div class="bar"></div>
+    <ul class="steps"><li>Address and registration</li><li>Certificate</li><li>Page content</li><li>Blocklists</li><li>Store, channel or profile data</li><li>AI read</li></ul>
+    <p class="small muted section-gap">Usually 5–30 seconds. You can leave this page; the result is saved either way.</p>
+    <noscript><p class="small">Reload the page to see the result.</p></noscript>
+  </div>
+{% elif job.status == "failed" %}
+  <p class="alert" role="alert">The investigation stopped after {{ job.attempts }} attempt(s): {{ job.error }}</p>
+{% elif f %}
+  <div class="fade-in">{% include "_report.html" %}</div>
+{% elif (job.result or {}).get("skipped") %}
+  <p class="note">Skipped: {{ job.result.skipped }}</p>
+{% else %}
+  <p class="note">The job finished without producing a finding.</p>
+{% endif %}
+</div>
