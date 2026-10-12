@@ -12,7 +12,7 @@
 {% if msg_override == "key" %}<p class="flash" role="status">API key created. Copy it now; it is shown once.</p>{% endif %}
 {% if test_result %}<p class="flash" role="status">{{ test_result }}</p>{% endif %}
 
-<section class="form-section">
+<section class="form-section" id="team">
   <div class="about"><h3>Team</h3><p>Everyone here sees this organisation's brands and findings, and nothing else.</p></div>
   <div>
     <div class="table-wrap">
@@ -40,7 +40,7 @@
   </div>
 </section>
 
-<section class="form-section">
+<section class="form-section" id="api-keys">
   <div class="about"><h3>API keys</h3><p>For scripts and other tools: read findings and start investigations. Keys belong to the organisation.</p></div>
   <div>
     {% if new_key %}<div class="note key-once" role="status">Copy this key now; it is shown once:<br><code>{{ new_key }}</code></div>{% endif %}
@@ -64,7 +64,7 @@
   </div>
 </section>
 
-<section class="form-section">
+<section class="form-section" id="alerts">
   <div class="about"><h3>Alerts</h3><p>New Medium and High findings for this organisation are sent here, and only here. Every finding also appears under Alerts in the app.</p></div>
   <div>
     <ul class="rows sheet">
@@ -90,7 +90,7 @@
   </div>
 </section>
 
-<section class="form-section">
+<section class="form-section" id="integrations">
   <div class="about"><h3>Connected services</h3><p>Set on the server through environment variables. Values are never shown here.</p></div>
   <div>
     <ul class="rows sheet">

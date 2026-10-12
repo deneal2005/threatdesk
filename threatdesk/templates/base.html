@@ -17,11 +17,11 @@
 {% if user %}
 {% set cur_path = request.url.path %}
 <div class="shell">
-  <div class="sidebar-backdrop" onclick="document.body.classList.remove('drawer-open')" aria-hidden="true"></div>
+  <div class="sidebar-backdrop" aria-hidden="true"></div>
   <nav class="rail-nav" id="sidebar-nav" aria-label="Main Navigation">
     <div class="sidebar-top">
       <a href="/" class="wordmark" title="ThreatDesk · Digital Risk Protection">{{ m.mark() }}<b>ThreatDesk</b></a>
-      <button class="drawer-close hide-desktop" type="button" aria-label="Close navigation" onclick="document.body.classList.remove('drawer-open')">
+      <button class="drawer-close hide-desktop" type="button" aria-label="Close navigation">
         {{ m.icon("close") }}
       </button>
     </div>
@@ -85,7 +85,7 @@
         <span class="nav-group-title">ORGANIZATION</span>
         <ul class="nav">
           <li>
-            <a href="/settings" {% if cur_path == "/settings" %}aria-current="page"{% endif %} title="Security Team &amp; Access Controls">
+            <a href="/settings#team" {% if cur_path == "/settings" %}aria-current="page"{% endif %} title="Security Team &amp; Access Controls">
               {{ m.icon("team") }}<span class="lbl">Team</span>
             </a>
           </li>
@@ -105,9 +105,12 @@
     </div>
 
     <div class="nav-foot">
-      <div class="who-box">
-        <div class="who" title="{{ user.email }}">{{ user.email }}</div>
-        <span class="who-role">{{ user.role|capitalize if user.role else "Analyst" }}</span>
+      <div class="user-profile">
+        <div class="user-avatar" aria-hidden="true">{{ user.email[0]|upper }}</div>
+        <div class="user-info">
+          <span class="who" title="{{ user.email }}">{{ user.email }}</span>
+          <span class="user-role">{{ user.role|upper if user.role else "ANALYST" }}</span>
+        </div>
       </div>
       <form method="post" action="/logout">{{ m.csrf() }}<button type="submit" class="logout-btn" title="Sign out of ThreatDesk">{{ m.icon("logout") }}<span class="lbl">Log out</span></button></form>
     </div>
@@ -116,7 +119,7 @@
   <div class="shell-content">
     <header class="app-topbar" aria-label="Application Header">
       <div class="topbar-left">
-        <button class="drawer-toggle hide-desktop" type="button" aria-label="Open navigation menu" onclick="document.body.classList.toggle('drawer-open')">
+        <button class="drawer-toggle hide-desktop" type="button" aria-label="Open navigation menu">
           {{ m.icon("menu") }}
         </button>
         <div class="topbar-context">
@@ -131,6 +134,7 @@
           <div class="topbar-search-wrap">
             {{ m.icon("search") }}
             <input id="global-search" type="search" name="q" placeholder="Search suspicious domains, URLs, or targets..." autocomplete="off">
+            <kbd class="kbd-hint" aria-hidden="true">⌘K</kbd>
           </div>
         </form>
       </div>
