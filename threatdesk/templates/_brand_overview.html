@@ -85,6 +85,7 @@
       <span class="eyebrow">Brand settings</span>
       <dl class="kv">
         <dt>Keywords</dt><dd>{{ brand.keywords|join(", ") or "None" }}</dd>
+        <dt>Look-alike sensitivity</dt><dd>{{ ((brand.detection or {}).get("sensitivity") or "balanced")|capitalize }}</dd>
         <dt>Logo</dt><dd>{% if brand.logo_phash %}<img class="logo-thumb" src="/brands/{{ brand.id }}/logo" alt="Brand logo" width="40" height="40">{% else %}<a href="/brands/{{ brand.id }}/edit">Add a logo</a> to catch copied icons{% endif %}</dd>
         {% if (brand.official_apps or {}).get("publishers") %}<dt>App publishers</dt><dd>{{ brand.official_apps.publishers|join(", ") }}</dd>{% endif %}
       </dl>

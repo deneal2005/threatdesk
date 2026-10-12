@@ -742,3 +742,15 @@ code.copy { display: inline-block; margin-top: 4px; padding: 4px 7px; background
 .checks summary::after { content: " \25B8"; font-size: 10px; }
 .checks details[open] summary::after { content: " \25BE"; }
 .cols-2 > .sheet + .sheet, .cols-3 > .sheet + .sheet, .split > aside > .sheet + .sheet { margin-top: 0; }
+
+/* Classification and score breakdown (riskview.py) */
+.risk-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s2) var(--s3); margin: var(--s2) 0 0; max-width: 860px; }
+.tier { display: inline-block; font-weight: 650; font-size: 13px; padding: 3px 8px; border-radius: var(--r-sm); border: 1px solid var(--rule); background: var(--sheet-2); color: var(--ink-2); white-space: nowrap; }
+.tier-high { background: var(--high-wash); border-color: #EBC3B8; color: var(--high); }
+.tier-med { background: var(--med-wash); border-color: #E8D2AB; color: #6E4206; }
+.tier-low { background: var(--low-wash); border-color: #CBD8D1; color: var(--ink-2); }
+.tier-off { color: var(--graphite); }
+.tier.sm { font-size: 11.5px; padding: 1px 6px; font-weight: 600; }
+.breakdown { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); margin: 0 0 var(--s3); }
+.breakdown > div { display: flex; gap: 6px; align-items: baseline; }
+.breakdown dt { color: var(--graphite); } .breakdown dd { margin: 0; font-weight: 600; }

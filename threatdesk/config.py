@@ -75,6 +75,7 @@ class Settings:
     start_worker: bool = True
     worker_concurrency: int = 3
     job_timeout: int = 120
+    job_retention_days: int = 30
     contacts_path: str = "contacts.yaml"
     public_base_url: str = ""
     dns_servers: tuple[str, ...] = DEFAULT_DNS
@@ -125,6 +126,7 @@ def load_settings() -> Settings:
         enable_screenshots=(_get("ENABLE_SCREENSHOTS") or "").lower() == "true",
         start_worker=(_get("START_WORKER") or "true").lower() != "false" and not testing,
         worker_concurrency=_int("WORKER_CONCURRENCY", 3), job_timeout=_int("JOB_TIMEOUT", 120),
+        job_retention_days=max(0, _int("JOB_RETENTION_DAYS", 30)),
         contacts_path=_get("CONTACTS_PATH") or "contacts.yaml",
         public_base_url=(_get("PUBLIC_BASE_URL") or "").rstrip("/"),
         dns_servers=_dns_servers(_get("DNS_SERVERS")),

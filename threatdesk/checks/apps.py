@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 
 from threatdesk import constants as C
 from threatdesk.brands import publisher_key
@@ -13,16 +14,60 @@ from threatdesk.db import utcnow
 from threatdesk.scoring_helpers import parse_date
 
 PLAY_TIMEOUT = 15.0
+DEV_ID_TTL = 24 * 3600
+_official_devs: dict[str, tuple[float, str | None, str]] = {}      # package -> (expires, developerId, developer)
+
+
+def _play_app(app_id: str) -> dict:
+    from google_play_scraper import app
+    return app(app_id, lang="en", country="in")
+
+
+def _play_perms(app_id: str) -> dict | None:
+    from google_play_scraper import permissions
+    try:
+        return permissions(app_id, lang="en", country="in")
+    except Exception:  # noqa: BLE001 - permissions are a separate, flaky endpoint
+        return None
 
 
 def _play_fetch(app_id: str) -> tuple[dict, dict | None]:
-    from google_play_scraper import app, permissions
-    details = app(app_id, lang="en", country="in")
-    try:
-        perms = permissions(app_id, lang="en", country="in")
-    except Exception:  # noqa: BLE001 - permissions are a separate, flaky endpoint
-        perms = None
-    return details, perms
+    return _play_app(app_id), _play_perms(app_id)
+
+
+async def official_play_developers(brand) -> dict[str, tuple[str, str]]:
+    """{developerId: (official package, developer name)} for the brand's listed Android apps (cached 24 h).
+    Google Play developer names are not unique or verified; the developer account id is."""
+    out: dict[str, tuple[str, str]] = {}
+    for pkg in (brand.official_apps.get("android") or [])[:5]:
+        hit = _official_devs.get(pkg)
+        if not hit or hit[0] < time.monotonic():
+            try:
+                d = await asyncio.wait_for(asyncio.to_thread(_play_app, pkg), PLAY_TIMEOUT)
+                hit = (time.monotonic() + DEV_ID_TTL, str(d.get("developerId") or "") or None, d.get("developer") or "")
+            except Exception:  # noqa: BLE001 - unknown is fine: the name rule applies instead
+                hit = (time.monotonic() + 600, None, "")
+            _official_devs[pkg] = hit
+        if hit[1]:
+            out[hit[1]] = (pkg, hit[2])
+    return out
+
+
+async def play_publisher(c: Ctx, d: dict, pkg: str) -> tuple[str | None, str | None]:
+    """(official reason, copied-name evidence). Same developer account as a listed app -> official. A listed publisher
+    name on a *different* account than the official app published under that name -> not official."""
+    dev, dev_id = d.get("developer") or "", str(d.get("developerId") or "")
+    pub = c.brand.official_publisher(dev, d.get("developerWebsite") or "", d.get("developerEmail") or "")
+    if pub and not pub.startswith("listed publisher"):
+        return pub, None                                   # website/email on an official domain
+    devs = await official_play_developers(c.brand) if dev_id else {}
+    if dev_id in devs:
+        return f"same Google Play developer account as official app {devs[dev_id][0]}", None
+    same_name = [(p, name) for p, name in devs.values() if publisher_key(name) == publisher_key(dev)]
+    if same_name:
+        return None, (f"developer '{dev}' uses the name of the account that publishes official app {same_name[0][0]}, "
+                      f"but it is a different Google Play developer account ({dev_id or 'id unknown'})")
+    return pub, None
 
 
 def dangerous_from_play(perms: dict | None) -> list[str]:
@@ -60,13 +105,21 @@ async def run_play(ctx: Ctx) -> None:
             return c.not_possible("play_details", "app not found on Google Play (removed, or never published)")
         except asyncio.TimeoutError:
             return c.not_possible("play_details", f"Google Play did not answer in {int(PLAY_TIMEOUT)} s")
+        except Exception as e:  # noqa: BLE001 - the unofficial scraper breaks when Play changes its pages
+            return c.not_possible("play_details", f"Google Play listing could not be read ({type(e).__name__})")
+        if not isinstance(d, dict) or not d.get("title"):
+            return c.not_possible("play_details", "Google Play returned an empty or malformed listing")
         c.facts["play"] = {"details": d, "perms": perms}
         dev, email, website = d.get("developer") or "", d.get("developerEmail") or "", d.get("developerWebsite") or ""
-        pub = c.brand.official_publisher(dev, website, email)
+        pub, copied = await play_publisher(c, d, pkg) if c.brand.name else (None, None)
         if pub:
             c.facts["official_publisher"] = pub
         official = bool(pub) or c.brand.is_official_asset("android", pkg)
+        if copied and not official:                    # the specific evidence first: rules count once
+            c.card.add("app_publisher_lookalike", copied)
         imp = impersonation(c.card, c.brand, d.get("title") or "", pkg, "android", dev, pub)
+        if copied and not official:
+            imp["publisher_copied"] = copied
         if not official:
             if email and email.rsplit("@", 1)[-1].lower() in C.FREE_EMAIL_PROVIDERS:
                 c.card.add("app_dev_free_email", f"developer email {email}")
@@ -76,11 +129,11 @@ async def run_play(ctx: Ctx) -> None:
         c.indicator("developer", dev)
         c.indicator("email", email.lower())
         store_evidence(c, "play_listing", {k: d.get(k) for k in (
-            "title", "developer", "developerEmail", "developerWebsite", "developerAddress", "privacyPolicy",
+            "title", "developer", "developerId", "developerEmail", "developerWebsite", "developerAddress", "privacyPolicy",
             "installs", "released", "updated", "score", "ratings", "genre", "icon", "url")}
             | {"description": (d.get("description") or "")[:3000], "permissions": perms})
-        return c.ran("play_details", title=d.get("title"), developer=dev, email=email, website=website,
-                     installs=d.get("installs"), score=d.get("score"), genre=d.get("genre"),
+        return c.ran("play_details", title=d.get("title"), developer=dev, developer_id=d.get("developerId"),
+                     email=email, website=website, installs=d.get("installs"), score=d.get("score"), genre=d.get("genre"),
                      official_publisher=pub, **age, **imp)
 
     first = await run_check("play_details", play_details, ctx, timeout=20)
@@ -140,7 +193,7 @@ async def run_ios(ctx: Ctx) -> None:
         if pub:
             c.facts["official_publisher"] = pub
         official = bool(pub) or c.brand.is_official_asset("ios", app_id)
-        imp = impersonation(c.card, c.brand, r.get("trackName") or "", app_id, "ios", seller or dev, pub)
+        imp = impersonation(c.card, c.brand, r.get("trackName") or "", app_id, "ios", seller or dev, pub, bundle)
         age = app_age_signals(c, r.get("releaseDate"), r.get("userRatingCount"), official)
         c.facts["ios"] = r
         c.indicator("developer", seller or dev)

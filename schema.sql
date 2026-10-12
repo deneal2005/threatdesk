@@ -23,6 +23,7 @@ CREATE TABLE brands (
 	scan_interval_hours INTEGER NOT NULL, 
 	last_scan_at TIMESTAMP WITHOUT TIME ZONE, 
 	created TIMESTAMP WITHOUT TIME ZONE NOT NULL, 
+	detection JSON, 
 	PRIMARY KEY (id), 
 	FOREIGN KEY(org_id) REFERENCES orgs (id)
 );

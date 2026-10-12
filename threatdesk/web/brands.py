@@ -13,6 +13,7 @@ from threatdesk.assets.forms import parse_initial_assets
 from threatdesk.db import get_db
 from threatdesk.images import MAX_UPLOAD, process_logo_upload
 from threatdesk.models import AssetWhitelist, Brand, User
+from threatdesk.reconcile import reconcile_brand
 from threatdesk.safety import InvalidInput, clean_domain, clean_text
 from threatdesk.tenancy import get_owned, scoped
 from threatdesk.web.brandpage import brand_page
@@ -26,7 +27,8 @@ CSRF = Depends(csrf_protect)
 def _form_values(brand: Brand) -> dict:
     return {"name": brand.name, "keywords": ", ".join(brand.keywords or []),
             "scan_interval_hours": brand.scan_interval_hours,
-            "publishers": "\n".join((brand.official_apps or {}).get("publishers", []))}
+            "publishers": "\n".join((brand.official_apps or {}).get("publishers", [])),
+            "sensitivity": svc.sensitivity_of(brand)}
 
 
 async def _logo(form) -> tuple[bytes, str] | None:
@@ -48,19 +50,21 @@ def list_brands(request: Request, user: User = Depends(current_user), db: Sessio
 
 @router.get("/brands/new")
 def new_brand(request: Request, user: User = Depends(current_user)):
-    return render(request, "brand_form.html", {"brand": None, "v": {"scan_interval_hours": 24}})
+    return render(request, "brand_form.html", {"brand": None, "v": {"scan_interval_hours": 24,
+                                                                    "sensitivity": svc.DEFAULT_SENSITIVITY}})
 
 
 def _apply_settings(brand: Brand, data: svc.BrandSettings) -> None:
     brand.name, brand.keywords, brand.scan_interval_hours = data.name, data.keywords, data.scan_interval_hours
     brand.official_apps = {**(brand.official_apps or {}), "publishers": data.publishers}
+    brand.detection = {**(brand.detection or {}), "sensitivity": data.sensitivity}
 
 
 @router.post("/brands", dependencies=[CSRF])
 async def create_brand(request: Request, user: User = Depends(current_user), db: Session = Depends(get_db)):
     form = await request.form()
     v = {k: form.get(k) for k in ("name", "websites", "profiles", "apps", "keywords", "scan_interval_hours",
-                                  "publishers") if isinstance(form.get(k), str)}
+                                  "publishers", "sensitivity") if isinstance(form.get(k), str)}
     try:
         data = svc.parse_brand_settings(v)
         assets = parse_initial_assets(v)
@@ -101,7 +105,7 @@ async def update_brand(brand_id: int, request: Request, user: User = Depends(cur
                        db: Session = Depends(get_db)):
     brand = get_owned(db, Brand, brand_id, user.org_id)
     form = await request.form()
-    v = {k: form.get(k) for k in ("name", "keywords", "scan_interval_hours", "publishers")
+    v = {k: form.get(k) for k in ("name", "keywords", "scan_interval_hours", "publishers", "sensitivity")
          if isinstance(form.get(k), str)}
     try:
         data = svc.parse_brand_settings(v)
@@ -138,6 +142,8 @@ async def add_whitelist(brand_id: int, request: Request, user: User = Depends(cu
         value = value.lstrip("@")
     reason = clean_text(str(form.get("reason") or ""), 500, label="Reason")
     db.add(AssetWhitelist(org_id=user.org_id, brand_id=brand.id, type=type_, value=value, reason=reason))
+    db.flush()
+    reconcile_brand(db, brand)
     db.commit()
     return RedirectResponse(f"/brands/{brand.id}?tab=allow&m=whitelisted", status_code=303)
 

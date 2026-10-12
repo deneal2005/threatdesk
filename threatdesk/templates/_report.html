@@ -7,12 +7,16 @@
   <div class="verdict-line">
     <span class="verdict verdict-{{ vc }}">{{ f.verdict }}</span>
     {% if vc != "excluded" %}<span class="score-big"><span class="num">{{ f.score }}</span><span class="faint">/100</span></span>{{ m.sev(f.severity) }}{% endif %}
-    <span class="small muted">{{ counts.ran }} of {{ counts.total }} checks ran</span>
+    <span class="small muted">{{ counts.ran }} of {{ counts.total }} checks ran · last checked <span title="{{ f.last_seen|dt }}">{{ f.last_seen|ago }}</span></span>
   </div>
+  <p class="risk-line"><span class="tier tier-{{ risk.tone }}">{{ risk.label }}</span>
+    <span class="small">{{ risk.explanation }}</span>
+    {% if risk.tier not in ("official", "false_positive") %}<span class="small muted">Evidence confidence: <strong>{{ risk.confidence }}</strong> ({{ risk.confidence_reason }})</span>{% endif %}</p>
   {% if vc == "excluded" %}
   <p class="note">This is one of the brand's official or allowed assets, so it is not scored.</p>
   {% else %}
   {{ m.score_rail(signals, f) }}
+  {% if risk.assessment.capped and f.score == risk.assessment.score %}<p class="note">{{ risk.assessment.note }}</p>{% endif %}
   {% endif %}
   {% if vc == "insufficient" %}
   <p class="note">Only {{ counts.ran }} check{{ "s" if counts.ran != 1 }} could run, so there is not enough evidence for a verdict.{% if f.kind == "social_profile" %} Add the profile details below to complete it.{% endif %} That is not proof it's genuine.</p>
@@ -27,6 +31,9 @@
 {% if vc != "excluded" %}
 <section class="section">
   <div class="section-head"><h2>Why it was flagged</h2><span class="small muted">Each line adds to the score above</span></div>
+  {% if risk.breakdown %}
+  <dl class="breakdown small">{% for name, pts in risk.breakdown %}<div><dt>{{ name }}</dt><dd class="num">{{ "+" if pts > 0 }}{{ pts }}</dd></div>{% endfor %}</dl>
+  {% endif %}
   {% if signals %}
   <div class="sheet">
     <ol class="ledger pad-x sev-{{ f.severity|lower }}-r">

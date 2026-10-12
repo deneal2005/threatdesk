@@ -93,3 +93,9 @@ def test_text_report_becomes_flagged_finding():
         f = s.get(Finding, res["finding_id"])
         assert f.source == "intake" and f.is_user_submitted and f.in_triage and f.score > 0
         assert s.get(ReportIntake, iid).finding_id == f.id
+
+
+def test_text_report_with_signals_gets_a_verdict_without_ai():
+    brand = BrandContext(name="Acme Bank", official_domains=["acmebank.com"], official_handles={"instagram": ["acmebank"]})
+    r = analyze_text(MSG, brand, None)
+    assert r.score >= 40 and r.verdict in ("Medium risk", "High risk")

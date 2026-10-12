@@ -3,16 +3,18 @@ from __future__ import annotations
 
 import re
 
-from rapidfuzz import fuzz
 
 from threatdesk.brands import BrandContext
 from threatdesk.checks.base import Ctx, EvidenceItem, get_json
 from threatdesk.checks.content import text_signals
+from threatdesk.checks.domain import registrable_domain
 from threatdesk.db import utcnow
+from threatdesk.indicators import extract, host_of, is_shortener
+from threatdesk.lookalike import basic, best_match
 from threatdesk.pageparse import parse
 from threatdesk.safety import UnsafeURL, safe_fetch
 from threatdesk.scoring import Scorecard
-from threatdesk.scoring_helpers import handle_similarity, norm, parse_date
+from threatdesk.scoring_helpers import parse_date
 
 YT = "https://www.googleapis.com/youtube/v3"
 OG_RE = re.compile(r"^(telegram: contact @|telegram messenger$|telegram – a new era of messaging)", re.I)
@@ -21,40 +23,79 @@ LOGIN_WALL = re.compile(r"^(instagram|facebook|x|tiktok|log ?in|login • instag
                         r"page not found|sorry, this page isn't available\.?)$", re.I)
 
 
+BARE_DOMAIN_RE = re.compile(r"(?<![@\w.-])(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}\b", re.I)
+
+
+def _bio_links(card: Scorecard, brand: BrandContext, bio: str, links, prefix: str, out: dict) -> list[str]:
+    """Links in the profile that point at a non-official site whose name imitates the brand. The brand's exact name
+    on another TLD (amazon.work, amazon.shop) is usually the brand's own: recorded, not scored."""
+    found: list[str] = []
+    refs = brand.name_references() | {registrable_domain(d).split(".")[0]: f"official site {d}"
+                                      for d in brand.official_domains}
+    bare = [m.group(0) for m in BARE_DOMAIN_RE.finditer(bio or "")]
+    for u in list(dict.fromkeys([*(links or []), *extract(bio or "")["url"], *bare]))[:10]:
+        host = host_of(u)
+        if not host or brand.is_official_host(host) or is_shortener(u):
+            continue
+        hit = best_match(registrable_domain(host).split(".")[0], refs)
+        if hit and hit[0].score == 100 and hit[0].techniques == ["identical name"]:
+            out.setdefault("same_name_links", []).append(host)
+            continue
+        if hit and hit[0].strong(brand.lookalike_threshold):
+            card.add("bio_link_lookalike", f"{prefix}profile links to {host}, which imitates {hit[1]} "
+                                           f"({hit[0].explain()})")
+            found.append(host)
+    return found
+
+
 def social_signals(card: Scorecard, brand: BrandContext, platform: str, handle: str, name: str, bio: str,
-                   created=None, followers: int | None = None, prefix: str = "") -> dict:
+                   created=None, followers: int | None = None, prefix: str = "", verified: bool | None = None,
+                   links=()) -> dict:
+    """Signals for one account. Identity (handle/name look-alike) is kept apart from context (age, audience,
+    badge) and behaviour (bio text, links) so scoring can tell "named like the brand" from "acts like a scam"."""
     if not brand.name:
         return {"note": "No brand selected: no look-alike check"}
     hkey = (handle or "").lstrip("@").lower()
     if hkey and brand.is_official_asset(platform, hkey):
         return {"official": True}
     out: dict = {}
-    sims = [(handle_similarity(hkey, h), h) for h in brand.all_handles() if h and not h.startswith("uc")]
-    if sims and hkey:
-        sim, best = max(sims)
-        if sim >= 80 and norm(hkey) != norm(best):
-            card.add("handle_similar", f"{prefix}@{handle} resembles official @{best} ({int(sim)}%)")
-            out["similar_to"] = best
-    for term in brand.terms():
-        if name and fuzz.token_set_ratio(name.lower(), term) >= 85:
-            card.add("name_similar", f"{prefix}display name '{name[:80]}' resembles {brand.name}")
-            out["name_similar"] = True
-            break
+    th = brand.lookalike_threshold
+    if hkey:
+        hit = best_match(hkey, brand.reference_handles() | brand.name_references())
+        if hit and hit[0].strong(th):
+            m, label = hit
+            same = basic(hkey) == basic(m.reference) and m.reference in brand.reference_handles()
+            why = ("same handle as an official account on another platform; add it to the brand if it is yours"
+                   if same else m.explain())
+            card.add("handle_similar", f"{prefix}@{handle} resembles {label} ({why}; similarity {m.score}%)")
+            out["similar_to"], out["handle_match"] = m.reference, m.as_dict()
+        elif hit:
+            out["handle_mentions"] = hit[0].as_dict()
+    if name:
+        hit = best_match(name, brand.name_references())
+        if hit and hit[0].strong(th):
+            card.add("name_similar", f"{prefix}display name '{name[:80]}' resembles {hit[1]} ({hit[0].explain()})")
+            out["name_similar"], out["name_match"] = True, hit[0].as_dict()
     born = parse_date(created)
-    if born:
-        days = (utcnow() - born).days
-        if days < 90:
-            card.add("account_lt_90d", f"{prefix}account created {born.date().isoformat()} ({days} days ago)")
-        elif days < 365:
-            card.add("account_lt_365d", f"{prefix}account created {born.date().isoformat()}")
+    days = (utcnow() - born).days if born else None
+    if days is not None and days < 90:
+        card.add("account_lt_90d", f"{prefix}account created {born.date().isoformat()} ({days} days ago)")
+    elif days is not None and days < 365:
+        card.add("account_lt_365d", f"{prefix}account created {born.date().isoformat()}")
     scratch = Scorecard()                       # text rules on name + bio, evidence prefixed (USER-SUPPLIED...)
     found = text_signals(scratch, f"{name or ''}\n{bio or ''}", brand, brand_mentions=False)
     for s in scratch.signals:
         card.add(s.code, f"{prefix}{s.evidence}")
     out["text_signals"] = list(found)
-    claims = "claims_official" in found or "similar_to" in out
-    if followers is not None and followers < 100 and claims:
+    if lookalike_links := _bio_links(card, brand, bio, links, prefix, out):
+        out["lookalike_links"] = lookalike_links
+    resembles = "similar_to" in out or bool(out.get("name_similar"))
+    if followers is not None and followers < 100 and ("claims_official" in found or resembles):
         card.add("low_followers", f"{prefix}{followers} followers")
+    if verified and resembles:
+        card.add("platform_verified", f"{prefix}the platform shows a verified badge on this account")
+    if days is not None and days >= 730 and followers is not None and followers >= 10_000:
+        card.add("established_account", f"{prefix}account since {born.date().isoformat()} with {followers:,} followers")
     return out
 
 

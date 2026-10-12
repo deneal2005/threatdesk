@@ -45,6 +45,8 @@ class Brand(Base):
     scan_interval_hours: Mapped[int] = mapped_column(Integer, default=24)
     last_scan_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    # Detection settings ({"sensitivity": "strict|balanced|broad"}). Nullable: added to older databases at startup.
+    detection: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
 
 class AssetWhitelist(Base):

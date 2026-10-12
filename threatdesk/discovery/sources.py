@@ -13,8 +13,8 @@ from threatdesk.checks.domain import resolve_a
 from threatdesk.checks.social import fetch_telegram
 from threatdesk.config import Settings
 from threatdesk.discovery.permutations import all_domain_candidates, telegram_candidates
+from threatdesk.lookalike import best_match
 from threatdesk.safety import DOMAIN_RE
-from threatdesk.scoring_helpers import handle_similarity
 
 DNS_CONCURRENCY = 30
 MAX_DOMAIN_JOBS = 60
@@ -85,18 +85,29 @@ async def src_crtsh(client, brand: BrandContext, settings: Settings):
 async def src_ios(client, brand: BrandContext, settings: Settings):
     urls: list[str] = []
     official = {a.lower() for a in brand.official_apps.get("ios", [])}
-    for term in brand.terms()[:3]:
-        status, data = await get_json(client, "https://itunes.apple.com/search",
-                                      params={"term": term, "entity": "software", "country": "in", "limit": 25})
+    failed: list[str] = []
+    terms = brand.terms()[:3]
+    for term in terms:
+        try:
+            status, data = await get_json(client, "https://itunes.apple.com/search",
+                                          params={"term": term, "entity": "software", "country": "in", "limit": 25})
+        except Exception as e:  # noqa: BLE001 - one failed term must not discard the others
+            status, data = type(e).__name__, None
         if status != 200 or not isinstance(data, dict):
-            return f"failed: App Store search answered HTTP {status}", urls
-        for r in data.get("results", []):
+            failed.append(f"'{term}' (HTTP {status})" if isinstance(status, int) else f"'{term}' ({status})")
+            continue
+        for r in data.get("results") or []:
+            if not isinstance(r, dict) or not r.get("trackId"):
+                continue
             if str(r.get("trackId")) in official or not relevant(brand, r.get("trackName"), r.get("sellerName")):
                 continue
             u = f"https://apps.apple.com/app/id{r.get('trackId')}"
             if u not in urls:
                 urls.append(u)
-    return f"ok: {len(urls)} non-official apps resemble the brand", urls[:MAX_PER_SOURCE]
+    if failed and len(failed) == len(terms):
+        return f"failed: App Store search did not answer for {', '.join(failed)}", []
+    note = f"; search failed for {', '.join(failed)}" if failed else ""
+    return f"ok: {len(urls)} non-official apps resemble the brand{note}", urls[:MAX_PER_SOURCE]
 
 
 def _play_search(term: str) -> list[dict]:
@@ -108,9 +119,14 @@ async def src_android(client, brand: BrandContext, settings: Settings):
     urls: list[str] = []
     no_id = 0
     official = {a.lower() for a in brand.official_apps.get("android", [])}
+    failed: list[str] = []
     for term in brand.terms()[:3]:
-        hits = await asyncio.wait_for(asyncio.to_thread(_play_search, term), 15)
-        for h in hits:
+        try:
+            hits = await asyncio.wait_for(asyncio.to_thread(_play_search, term), 15)
+        except Exception as e:  # noqa: BLE001 - the unofficial scraper raises many kinds of errors
+            failed.append(f"'{term}' ({type(e).__name__})")
+            continue
+        for h in hits or []:
             app_id = h.get("appId")
             if not app_id:
                 no_id += 1
@@ -121,6 +137,10 @@ async def src_android(client, brand: BrandContext, settings: Settings):
             if u not in urls:
                 urls.append(u)
     note = f"; {no_id} results had no app id (scraper limitation)" if no_id else ""
+    if failed and len(failed) == len(brand.terms()[:3]):
+        return f"failed: Google Play search did not answer for {', '.join(failed)}", []
+    if failed:
+        note += f"; search failed for {', '.join(failed)}"
     return f"ok: {len(urls)} non-official apps resemble the brand{note}", urls[:MAX_PER_SOURCE]
 
 
@@ -146,15 +166,15 @@ async def src_bluesky(client, brand: BrandContext, settings: Settings):
                                   params={"q": brand.name, "limit": 25})
     if status != 200 or not isinstance(data, dict):
         return f"failed: Bluesky search answered HTTP {status}", []
-    official = brand.official_handles.get("bluesky", [])
+    refs = brand.reference_handles() | brand.name_references()
     urls = []
     for a in data.get("actors", []):
         handle = a.get("handle", "")
         short = handle.removesuffix(".bsky.social")
         if brand.is_official_asset("bluesky", short) or brand.is_official_asset("bluesky", handle):
             continue
-        similar = any(handle_similarity(short, h) >= 80 for h in official)
-        if similar or relevant(brand, a.get("displayName"), short):
+        hit = best_match(short.split(".")[0], refs)
+        if (hit and hit[0].strong(brand.lookalike_threshold)) or relevant(brand, a.get("displayName"), short):
             urls.append(f"https://bsky.app/profile/{handle}")
     return f"ok: {len(urls)} accounts resemble the brand", urls[:MAX_PER_SOURCE]
 

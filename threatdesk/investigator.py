@@ -8,11 +8,13 @@ import httpx
 
 from threatdesk import llm
 from threatdesk.brands import BrandContext
-from threatdesk.checks import content, ct, domain, page, rdap, reputation, tls
+from threatdesk.checks import content, ct, domain, ownership, page, rdap, reputation, tls
 from threatdesk.checks.base import RAN, CheckOutcome, Ctx, EvidenceItem, run_check
 from threatdesk.config import Settings, get_settings
 from threatdesk.linkdetect import Link, detect
-from threatdesk.scoring import MIN_CHECKS, RULES, severity, verdict
+from threatdesk.scoring import (  # noqa: F401 - HARD_EVIDENCE/BRAND_CLAIMS/hard_evidence re-exported
+    BRAND_CLAIMS, HARD_EVIDENCE, MIN_CHECKS, RULES, assess, hard_evidence, severity, verdict,
+)
 
 KIND_MAP = {"website": "website", "android_app": "android_app", "ios_app": "ios_app", "youtube": "youtube",
             "telegram": "telegram", "bluesky": "bluesky", "closed_social": "social_profile"}
@@ -53,8 +55,8 @@ def exclusion(link: Link, brand: BrandContext) -> str | None:
     if brand.is_whitelisted("dedupe_key", link.dedupe_key):
         return "on the brand's allow list"
     if link.kind == "website":
-        if brand.is_official_host(link.host):
-            return f"official domain of {brand.name}"
+        if reason := brand.official_reason(link.host):
+            return reason
         if brand.is_whitelisted("domain", link.host):
             return "domain on the brand's allow list"
     elif link.kind in ("android_app", "ios_app"):
@@ -88,7 +90,8 @@ async def _website(ctx: Ctx) -> None:
     await asyncio.gather(                                                 # after page_fetch: see the final URL
         run_check("scam_lists", reputation.check_scam_lists, ctx),
         run_check("phishtank", reputation.check_phishtank, ctx),
-        run_check("ct_history", ct.check_ct, ctx))                        # after rdap_domain: age fallback
+        run_check("ct_history", ct.check_ct, ctx),                        # after rdap_domain: age fallback
+        run_check("ownership", ownership.check_ownership, ctx))           # after rdap_domain: registrar, registrant
     content.independent_site(ctx)                                         # needs page, rdap and ct results
 
 
@@ -142,15 +145,7 @@ def ai_facts(ctx: Ctx, brand: BrandContext) -> dict:
     }
 
 
-HARD_EVIDENCE = {"safe_browsing_hit", "virustotal_malicious", "urlhaus_listed", "phishtank_verified", "scam_list_hit",
-                 "hosting_abuse_block", "idn_homograph", "brand_domain_embedded"}
-BRAND_CLAIMS = {"claims_official", "brand_mention_unofficial", "known_brand_unofficial", "domain_lookalike",
-                "domain_has_brand", "app_impersonation", "handle_similar", "name_similar"}
 ENFORCEMENT_WORDS = ("block", "report", "takedown", "take down", "take-down", "blacklist", "blocklist", "suspend")
-
-
-def hard_evidence(codes: set[str]) -> bool:
-    return bool(codes & HARD_EVIDENCE) or ("asks_credentials" in codes and bool(codes & BRAND_CLAIMS))
 
 
 def temper_ai(ai: dict, codes: set[str]) -> dict:
@@ -182,13 +177,16 @@ async def investigate(url: str, brand: BrandContext | None = None, settings: Set
             if res:
                 ai = {"status": "ok", **res}
                 independent = any(s.code == "independent_site" for s in ctx.card.signals)
-                if res["scam_likelihood"] >= 0.7 and ran >= MIN_CHECKS and not independent:
+                # The AI may only add points when it read real content: for a website, a fetched page. Judging a
+                # domain by its name alone is what the name rules already do.
+                seen_content = link.kind != "website" or bool(ctx.facts.get("page"))
+                if res["scam_likelihood"] >= 0.7 and ran >= MIN_CHECKS and not independent and seen_content:
                     ctx.card.add("ai_assessment", f"AI: {res['category']} (likelihood {res['scam_likelihood']})")
                 ai = temper_ai(ai, {s.code for s in ctx.card.signals})
     finally:
         if own:
             await client.aclose()
-    score = 0 if excluded else ctx.card.score
+    score = 0 if excluded else assess(ctx.card.signals, KIND_MAP[link.kind]).score
     return Report(url=link.url, kind=KIND_MAP[link.kind], link={"kind": link.kind, "host": link.host,
                   "ident": link.ident, "platform": link.platform, **link.extra},
                   display_name=display_name(link, ctx.outcomes), dedupe_key=link.dedupe_key,

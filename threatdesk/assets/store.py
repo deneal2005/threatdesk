@@ -169,6 +169,7 @@ def sync_index(db: Session, brand: Brand) -> None:
     brand.official_apps = {"android": _uniq(a.store_id for a in apps if a.platform == "android"),
                            "ios": _uniq(a.store_id for a in apps if a.platform == "ios"),
                            "ios_bundles": _uniq(a.bundle_id for a in apps if a.platform == "ios"),
+                           "names": _uniq(n for a in apps for n in (a.name, a.product)),
                            "publishers": publishers}
     db.flush()
 

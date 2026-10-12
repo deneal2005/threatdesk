@@ -12,6 +12,7 @@ from threatdesk.assets import store
 from threatdesk.db import get_db
 from threatdesk.linkdetect import detect
 from threatdesk.models import ApiKey, Brand, Finding, Job
+from threatdesk.riskview import TIERS, tiers_for
 from threatdesk.safety import InvalidInput, defang, defang_text
 from threatdesk.security import allow, hash_api_key
 from threatdesk.tenancy import get_owned, scoped
@@ -31,11 +32,12 @@ def api_org(request: Request, db: Session = Depends(get_db)) -> int:
     return key.org_id
 
 
-def finding_json(f: Finding) -> dict:
+def finding_json(f: Finding, tier: str | None = None) -> dict:
     return {"id": f.id, "brand_id": f.brand_id, "kind": f.kind, "display_name": defang_text(f.display_name),
             "url_defanged": defang(f.url), "score": f.score, "severity": f.severity, "verdict": f.verdict,
             "status": f.status, "source": f.source, "user_submitted": f.is_user_submitted,
-            "first_seen": f.first_seen.isoformat(), "last_seen": f.last_seen.isoformat()}
+            "first_seen": f.first_seen.isoformat(), "last_seen": f.last_seen.isoformat(),
+            "classification": tier, "classification_label": TIERS[tier][0] if tier in TIERS else None}
 
 
 @router.get("/findings")
@@ -49,13 +51,16 @@ def list_findings(request: Request, org_id: int = Depends(api_org), db: Session 
     if p.get("severity"):
         q = q.where(Finding.severity == p["severity"])
     limit = min(500, max(1, int(p["limit"]))) if p.get("limit", "").isdigit() else 100
-    rows = [finding_json(f) for f in db.scalars(q.order_by(Finding.score.desc(), Finding.id.desc()).limit(limit))]
+    found = list(db.scalars(q.order_by(Finding.score.desc(), Finding.id.desc()).limit(limit)))
+    tiers = tiers_for(db, found)
+    rows = [finding_json(f, tiers[f.id]) for f in found]
     return {"findings": rows, "count": len(rows)}
 
 
 @router.get("/findings/{fid:int}")
 def get_finding(fid: int, org_id: int = Depends(api_org), db: Session = Depends(get_db)):
-    return finding_json(get_owned(db, Finding, fid, org_id))
+    f = get_owned(db, Finding, fid, org_id)
+    return finding_json(f, tiers_for(db, [f])[f.id])
 
 
 ASSET_FIELDS = {"website": ("url", "domain", "url_key", "kind", "purpose"),

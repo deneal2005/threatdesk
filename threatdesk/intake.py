@@ -18,7 +18,7 @@ from threatdesk.indicators import extract, host_of
 from threatdesk.investigator import Report
 from threatdesk.models import ReportIntake
 from threatdesk.scoring import MIN_CHECKS, Scorecard, severity, verdict
-from threatdesk.scoring_helpers import handle_similarity, norm
+from threatdesk.lookalike import basic, best_match
 
 
 def analyze_text(text: str, brand: BrandContext, ai: dict | None, extra_urls: list[str] | None = None) -> Report:
@@ -33,13 +33,17 @@ def analyze_text(text: str, brand: BrandContext, ai: dict | None, extra_urls: li
         if h := host_of(u):
             indicators.add(("domain", registrable_domain(h)))
     if ind["handle"]:
-        best = max(((handle_similarity(h, o), h, o) for h in ind["handle"] for o in brand.all_handles()),
-                   default=(0, "", ""))
-        sim, h, o = best
-        if sim >= 80 and norm(h) != norm(o):
-            card.add("handle_similar", f"@{h} in the message resembles official @{o} ({int(sim)}%)")
+        official = {basic(h) for h in brand.all_handles()}
+        refs = brand.reference_handles() | brand.name_references()
+        hits = [(hit, h) for h in ind["handle"] if basic(h) not in official and (hit := best_match(h, refs))
+                and hit[0].strong(brand.lookalike_threshold)]
+        similar = max(hits, key=lambda x: x[0][0].score) if hits else None
+        if similar:
+            (m, label), h = similar
+            card.add("handle_similar", f"@{h} in the message resembles {label} ({m.explain()}; similarity {m.score}%)")
         checks.append({"check": "handle_similarity", "status": "ran",
-                       "detail": {"similar_to": o if sim >= 80 and norm(h) != norm(o) else None, "handles": ind["handle"]}})
+                       "detail": {"similar_to": similar[0][0].reference if similar else None,
+                                  "handles": ind["handle"]}})
     else:
         checks.append({"check": "handle_similarity", "status": "not_possible",
                        "detail": {"reason": "no @handles in the message"}})
