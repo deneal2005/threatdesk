@@ -57,8 +57,25 @@ def list_findings(request: Request, user: User = Depends(current_user), db: Sess
         base = base.where(Finding.first_seen > last_visit)
     views = {"open": base.where(Finding.status.in_(OPEN)), "new": base.where(Finding.status == "new"), "all": base}
     counts = {k: db.scalar(select(func.count()).select_from(q.subquery())) or 0 for k, q in views.items()}
+    page = max(1, _int(p.get("page")) or 1)
+    page_size = min(100, max(1, _int(p.get("page_size")) or 50))
+    sort_by = p.get("sort", "score")
+    if sort_by not in ("score", "newest", "oldest"):
+        sort_by = "score"
+
     q = views[view].where(Finding.status == status) if status else views[view]
-    rows = list(db.scalars(q.order_by(Finding.score.desc(), Finding.last_seen.desc()).limit(500)))
+    total_matching = db.scalar(select(func.count()).select_from(q.subquery())) or 0
+    total_pages = max(1, (total_matching + page_size - 1) // page_size)
+
+    if sort_by == "newest":
+        ordered = q.order_by(Finding.last_seen.desc(), Finding.score.desc())
+    elif sort_by == "oldest":
+        ordered = q.order_by(Finding.first_seen.asc(), Finding.score.desc())
+    else:
+        ordered = q.order_by(Finding.score.desc(), Finding.last_seen.desc())
+
+    offset = (page - 1) * page_size
+    rows = list(db.scalars(ordered.offset(offset).limit(page_size)))
     tiers = tiers_for(db, rows)
     tier_f = p.get("tier") if p.get("tier") in TIERS else ""
     if tier_f:
@@ -75,7 +92,8 @@ def list_findings(request: Request, user: User = Depends(current_user), db: Sess
         "names": {b.id: b.name for b in brands}, "sources": sources, "brand_id": brand_id, "severity": severity,
         "status_f": status, "source": source, "since": since, "reported": reported, "last_visit": last_visit,
         "filtered": filtered, "statuses": list(cases.TRANSITIONS), "tiers": tiers, "tier_f": tier_f,
-        "tier_info": TIERS, "query_str": query_str})
+        "tier_info": TIERS, "query_str": query_str, "page": page, "total_pages": total_pages,
+        "page_size": page_size, "total_matching": total_matching, "sort_by": sort_by})
 
 
 @router.get("/findings/{fid:int}")

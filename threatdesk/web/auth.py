@@ -100,3 +100,25 @@ def add_user(request: Request, email: str = Form(""), password: str = Form(""), 
     db.add(User(org_id=admin.org_id, email=mail, password_hash=hash_password(password), role=role))
     db.commit()
     return RedirectResponse("/settings?m=user", status_code=303)
+
+
+@router.post("/settings/users/{user_id:int}/delete", dependencies=[CSRF])
+def remove_user(user_id: int, admin: User = Depends(require_admin), db: Session = Depends(get_db)):
+    from threatdesk.tenancy import get_owned
+    target = get_owned(db, User, user_id, admin.org_id)
+    if target.id == admin.id:
+        raise InvalidInput("Cannot remove your own user account.")
+    if target.role == "admin":
+        admin_count = db.scalar(
+            select(func.count(User.id)).where(User.org_id == admin.org_id, User.role == "admin")
+        ) or 0
+        if admin_count <= 1:
+            raise InvalidInput("Cannot remove the only administrator of the organisation.")
+    db.delete(target)
+    db.commit()
+    return RedirectResponse("/settings?m=user_removed", status_code=303)
+
+
+@router.get("/team")
+def team_redirect(request: Request):
+    return RedirectResponse("/settings#team", status_code=303)
