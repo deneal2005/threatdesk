@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from threatdesk.models import Brand, CaseEvent, CheckResult, Evidence, Finding, Indicator, ReportIntake, Signal, User
+from threatdesk.riskview import risk_view
 from threatdesk.scoring import RULES
 
 CHECK_ORDER = [
@@ -47,5 +48,5 @@ def report_context(db: Session, f: Finding) -> dict:
     return {"f": f, "checks": checks, "signals": signals, "positives": [s for s in signals if s.points > 0],
             "negatives": [s for s in signals if s.points < 0], "evidence": evidence, "indicators": indicators,
             "events": events, "users": users, "emails": {u.id: u.email for u in users}, "brand": brand,
-            "intakes": intakes, "rules": RULES, "counts": counts, "explanation": explanation,
-            "glossary": GLOSSARY}
+            "intakes": intakes, "rules": RULES, "counts": counts, "risk": risk_view(f, signals),
+            "explanation": explanation, "glossary": GLOSSARY}

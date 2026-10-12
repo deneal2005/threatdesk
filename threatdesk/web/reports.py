@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from threatdesk.db import get_db
 from threatdesk.models import Brand, Finding, ReportIntake, User
 from threatdesk.reporting import brand_summary, findings_csv
+from threatdesk.riskview import tiers_for
 from threatdesk.tenancy import get_owned, scoped
 from threatdesk.web.deps import current_user
 from threatdesk.web.templating import render
@@ -39,5 +40,5 @@ def export_csv(request: Request, user: User = Depends(current_user), db: Session
         q = q.where(Finding.brand_id == brand.id)
         name = f"findings-brand-{brand.id}"
     rows = list(db.scalars(q.order_by(Finding.score.desc(), Finding.id)))
-    return Response(findings_csv(rows), media_type="text/csv; charset=utf-8",
+    return Response(findings_csv(rows, tiers_for(db, rows)), media_type="text/csv; charset=utf-8",
                     headers={"Content-Disposition": f'attachment; filename="{name}.csv"'})

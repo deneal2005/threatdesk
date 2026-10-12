@@ -47,6 +47,13 @@
       <div class="field"><label for="scan_interval_hours">Scan automatically every</label>
         <div class="inline-fields"><input class="w-input" id="scan_interval_hours" name="scan_interval_hours" type="number" min="0" max="720" value="{{ v.scan_interval_hours if v.scan_interval_hours is not none else 24 }}"><span class="small muted">hours</span></div>
         <span class="hint">0 turns automatic scans off.</span></div>
+      <div class="field"><label for="sensitivity">Look-alike sensitivity</label>
+        <select id="sensitivity" name="sensitivity">
+          {% for key, text in (("strict", "Strict: only close imitations"), ("balanced", "Balanced (recommended)"), ("broad", "Broad: more variants, more to review")) %}
+          <option value="{{ key }}" {% if (v.sensitivity or "balanced") == key %}selected{% endif %}>{{ text }}</option>
+          {% endfor %}
+        </select>
+        <span class="hint">How closely a handle, display name or app title must resemble the brand to count as a look-alike. A look-alike name alone never raises a finding above Low risk.</span></div>
     </div>
   </section>
   <section class="form-section">
@@ -63,7 +70,7 @@
     <div>
       <div class="field"><label for="publishers">Official app publishers <span class="opt">(optional)</span></label>
         <textarea id="publishers" name="publishers" rows="2" placeholder="Acme Insurance Ltd">{{ v.publishers or '' }}</textarea>
-        <span class="hint">Company names that publish your apps, one per line. Apps by exactly these publishers are treated as official.</span></div>
+        <span class="hint">Company names that publish your apps, one per line. Apps by exactly these publishers are treated as official. On Google Play, where developer names are not verified, the developer account must also match one of your listed apps when ThreatDesk can check it.</span></div>
     </div>
   </section>
   <div class="form-actions">

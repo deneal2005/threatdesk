@@ -2,16 +2,20 @@ import pytest
 
 from threatdesk.brands import BrandContext
 from threatdesk.checks.content import domain_name_signals, missing_policy_pages, text_signals
-from threatdesk.scoring import RULES, VERDICTS, Scorecard, severity, verdict
+from threatdesk.scoring import (
+    CATEGORY_LABELS, CONTENT, IDENTITY, REPUTATION, RULES, VERDICTS, Scorecard, category, severity, verdict,
+)
 from threatdesk.web.present import rail
 
 BRAND = BrandContext(name="Acme Bank", official_domains=["acmebank.com"], keywords=["acme"])
 
 
 def test_every_rule_has_points_and_description():
-    assert len(RULES) == 52
+    assert len(RULES) == 60
     for code, (points, desc) in RULES.items():
         assert isinstance(points, int) and points != 0 and desc and "safe" not in desc.split()
+        assert category(code, points) in CATEGORY_LABELS
+    assert all(code in RULES for code in IDENTITY | REPUTATION | CONTENT)
 
 
 def test_cap_floor_and_dedupe():
@@ -54,8 +58,12 @@ def test_missing_policy_pages():
 def test_domain_name_rules():
     c = Scorecard()
     d = domain_name_signals(c, "acmebank.co", BRAND)
-    assert d["lookalike_of"] == "acmebank.com" and {s.code for s in c.signals} >= {"domain_lookalike",
-                                                                                   "domain_has_brand"}
+    codes = {s.code for s in c.signals}
+    assert d["lookalike_of"] == "acmebank.com" and "domain_has_brand" in codes
+    assert "domain_lookalike" not in codes                    # the same fact ("contains acmebank") counts once
+    c4 = Scorecard()
+    domain_name_signals(c4, "acmbank.com", BRAND)             # a typo of the name is its own signal
+    assert {s.code for s in c4.signals} == {"domain_lookalike"}
     c2 = Scorecard()
     assert domain_name_signals(c2, "login.acmebank.com", BRAND)["official"] and not c2.signals
     c3 = Scorecard()

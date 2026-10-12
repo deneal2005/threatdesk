@@ -2,7 +2,7 @@
 {% import "macros.html" as m with context %}
 {% block title %}Findings &amp; Triage · ThreatDesk{% endblock %}
 {% block content %}
-{% set keep %}{% if brand_id %}&amp;brand_id={{ brand_id }}{% endif %}{% if severity %}&amp;severity={{ severity }}{% endif %}{% if source %}&amp;source={{ source|urlencode }}{% endif %}{% if since %}&amp;since=1{% endif %}{% if reported %}&amp;reported=1{% endif %}{% if query_str %}&amp;q={{ query_str|urlencode }}{% endif %}{% endset %}
+{% set keep %}{% if brand_id %}&amp;brand_id={{ brand_id }}{% endif %}{% if severity %}&amp;severity={{ severity }}{% endif %}{% if source %}&amp;source={{ source|urlencode }}{% endif %}{% if since %}&amp;since=1{% endif %}{% if reported %}&amp;reported=1{% endif %}{% if tier_f %}&amp;tier={{ tier_f }}{% endif %}{% if query_str %}&amp;q={{ query_str|urlencode }}{% endif %}{% endset %}
 
 <header class="page-head">
   <div class="titles">
@@ -33,6 +33,7 @@
       {% if brand_id %}<input type="hidden" name="brand_id" value="{{ brand_id }}">{% endif %}
       {% if severity %}<input type="hidden" name="severity" value="{{ severity }}">{% endif %}
       {% if source %}<input type="hidden" name="source" value="{{ source }}">{% endif %}
+      {% if tier_f %}<input type="hidden" name="tier" value="{{ tier_f }}">{% endif %}
       <div class="search-wrap">
         <label for="search-input" class="sr">Search findings</label>
         <input id="search-input" type="search" name="q" value="{{ query_str or '' }}" placeholder="Search domain, name, or URL..." class="search-input">
@@ -69,6 +70,15 @@
             <option value="">Any status in this view</option>
             {% for s in statuses %}
             <option value="{{ s }}" {% if status_f == s %}selected{% endif %}>{{ s|status }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="field">
+          <label for="f-tier">Classification</label>
+          <select id="f-tier" name="tier">
+            <option value="">Any classification</option>
+            {% for key, t in tier_info.items() %}
+            <option value="{{ key }}" {% if tier_f == key %}selected{% endif %}>{{ t[0] }}</option>
             {% endfor %}
           </select>
         </div>
@@ -111,7 +121,7 @@
           <th>Finding &amp; Detection Summary</th>
           <th class="hide-sm">Status</th>
           <th class="hide-sm">Brand</th>
-          <th class="tight">Last seen</th>
+          <th class="tight hide-sm">Last seen</th>
         </tr>
       </thead>
       <tbody>
@@ -129,6 +139,8 @@
           <td>
             <a class="cell-main defanged" href="/findings/{{ f.id }}">{{ f.display_name|dfg }}</a>
             <span class="cell-sub">
+              {% set t = tier_info[tiers[f.id]] %}
+              <span class="tier sm tier-{{ t[2] }}" title="{{ t[1] }}">{{ t[0] }}</span>
               {{ f.kind|kind }} · {{ f.verdict }} · {{ f.source|source }}
               {% if f.is_user_submitted %}
               <span class="tagline user">customer reported</span>
@@ -139,7 +151,7 @@
             {{ m.status(f.status) }}
           </td>
           <td class="hide-sm">{{ names.get(f.brand_id, "-") }}</td>
-          <td class="tight faint" title="{{ f.last_seen|dt }}">{{ f.last_seen|ago }}</td>
+          <td class="tight faint hide-sm" title="{{ f.last_seen|dt }}">{{ f.last_seen|ago }}</td>
         </tr>
       {% endfor %}
       </tbody>

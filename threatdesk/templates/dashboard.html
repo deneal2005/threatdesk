@@ -162,7 +162,7 @@
             <th>Target Asset &amp; Detection Summary</th>
             <th class="hide-sm">Brand</th>
             <th class="hide-sm tight">Status</th>
-            <th class="tight">Detected</th>
+            <th class="tight hide-sm">Detected</th>
             <th class="tight"><span class="sr">Action</span></th>
           </tr>
         </thead>
@@ -180,7 +180,7 @@
             <td class="hide-sm tight">
               {{ m.status(f.status) }}
             </td>
-            <td class="tight faint" title="{{ f.last_seen|dt }}">{{ f.last_seen|ago }}</td>
+            <td class="tight faint hide-sm" title="{{ f.last_seen|dt }}">{{ f.last_seen|ago }}</td>
             <td class="tight">
               <a class="btn quiet sm" href="/findings/{{ f.id }}">Review →</a>
             </td>

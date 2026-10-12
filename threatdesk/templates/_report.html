@@ -28,11 +28,16 @@
     {% if vc != "excluded" %}
       <span class="score-big"><span class="num">{{ f.score }}</span><span class="faint">/100</span></span>
     {% endif %}
-    <span class="small muted">{{ counts.ran }} of {{ counts.total }} technical checks completed</span>
+    <span class="small muted">{{ counts.ran }} of {{ counts.total }} technical checks completed · last checked <span title="{{ f.last_seen|dt }}">{{ f.last_seen|ago }}</span></span>
   </div>
+
+  <p class="risk-line"><span class="tier tier-{{ risk.tone }}">{{ risk.label }}</span>
+    <span class="small">{{ risk.explanation }}</span>
+    {% if risk.tier not in ("official", "false_positive") %}<span class="small muted">Evidence confidence: <strong>{{ risk.confidence }}</strong> ({{ risk.confidence_reason }})</span>{% endif %}</p>
 
   {% if vc != "excluded" %}
     {{ m.score_rail(signals, f) }}
+    {% if risk.assessment.capped and f.score == risk.assessment.score %}<p class="note">{{ risk.assessment.note }}</p>{% endif %}
   {% endif %}
 
   {% if not f.in_triage %}
@@ -134,6 +139,9 @@
     <span class="small muted">Why it was flagged · Actual detection signals and observations</span>
   </div>
   <div class="sheet pad evidence-sheet">
+    {% if vc != "excluded" and risk.breakdown %}
+    <dl class="breakdown small">{% for name, pts in risk.breakdown %}<div><dt>{{ name }}</dt><dd class="num">{{ "+" if pts > 0 }}{{ pts }}</dd></div>{% endfor %}</dl>
+    {% endif %}
     {% if explanation.evidence_items %}
     <ul class="evidence-list">
       {% for item in explanation.evidence_items %}

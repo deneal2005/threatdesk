@@ -83,7 +83,7 @@ def test_discovery_skips_official_results(monkeypatch):
     bid = make_brand(oid)
     res = asyncio.run(handlers.handle_investigate(1, {"url": "https://acmebank.com", "brand_id": bid,
                                                       "source": "discovery:domains"}, oid))
-    assert res == {"skipped": "official domain", "verdict": "Official/whitelisted asset"}
+    assert res == {"skipped": "official domain", "verdict": "Official/whitelisted asset", "closed_existing": False}
     with db.session_scope() as s:
         assert s.scalar(select(Finding)) is None
     assert config.get_settings()

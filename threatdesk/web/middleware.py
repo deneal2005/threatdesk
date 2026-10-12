@@ -13,7 +13,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from threatdesk.logs import kv, request_id
 from threatdesk.safety import InvalidInput
-from threatdesk.security import CSRF_COOKIE, cookie_kwargs, csrf_from_cookie, new_csrf_cookie
+from threatdesk.security import CSRF_COOKIE, SESSION_COOKIE, cookie_kwargs, csrf_from_cookie, new_csrf_cookie
+from threatdesk.serverless import pump, wants_pump
 from threatdesk.web.deps import LoginRequired
 from threatdesk.web.templating import render
 
@@ -50,6 +51,8 @@ class CoreMiddleware(BaseHTTPMiddleware):
             raw, new_cookie = new_csrf_cookie()
         request.state.csrf_raw = raw
         try:
+            if wants_pump(request.method, request.headers, request.cookies.get(SESSION_COOKIE)):
+                await pump()
             response = await call_next(request)
         finally:
             request_id.reset(token)

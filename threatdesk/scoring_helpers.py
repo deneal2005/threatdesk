@@ -1,4 +1,4 @@
-"""Small shared helpers for checks: date parsing, similarity."""
+"""Small shared helpers for checks: date parsing. (Name similarity lives in threatdesk/lookalike.py.)"""
 from __future__ import annotations
 
 import re
@@ -8,8 +8,6 @@ try:
     from datetime import UTC
 except ImportError:
     UTC = timezone.utc
-
-from rapidfuzz import fuzz
 
 _FORMATS = ("%Y-%m-%dT%H:%M:%S.%f%z", "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S",
             "%Y-%m-%d", "%b %d, %Y", "%B %d, %Y", "%d %b %Y", "%Y%m%d%H%M%S", "%Y%m%d")
@@ -43,20 +41,3 @@ def parse_date(value) -> datetime | None:
         except ValueError:
             continue
     return None
-
-
-def norm(s: str) -> str:
-    return re.sub(r"[^a-z0-9]", "", (s or "").lower())
-
-
-def name_similarity(a: str, b: str) -> float:
-    return float(fuzz.token_set_ratio((a or "").lower(), (b or "").lower()))
-
-
-def handle_similarity(a: str, b: str) -> float:
-    return float(fuzz.ratio(norm(a), norm(b)))
-
-
-def company_norm(name: str) -> str:
-    from threatdesk.brands import publisher_key
-    return publisher_key(name)

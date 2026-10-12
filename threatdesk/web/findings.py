@@ -11,6 +11,7 @@ from threatdesk.db import get_db, utcnow
 from threatdesk.images import MAX_UPLOAD
 from threatdesk.metrics import OPEN
 from threatdesk.models import Brand, Finding, User
+from threatdesk.riskview import TIERS, tiers_for
 from threatdesk.safety import InvalidInput
 from threatdesk.tenancy import get_owned, scoped
 from threatdesk.web.deps import csrf_protect, current_user
@@ -58,18 +59,23 @@ def list_findings(request: Request, user: User = Depends(current_user), db: Sess
     counts = {k: db.scalar(select(func.count()).select_from(q.subquery())) or 0 for k, q in views.items()}
     q = views[view].where(Finding.status == status) if status else views[view]
     rows = list(db.scalars(q.order_by(Finding.score.desc(), Finding.last_seen.desc()).limit(500)))
+    tiers = tiers_for(db, rows)
+    tier_f = p.get("tier") if p.get("tier") in TIERS else ""
+    if tier_f:
+        rows = [f for f in rows if tiers[f.id] == tier_f]
     brands = list(db.scalars(scoped(Brand, user.org_id).order_by(Brand.name)))
     sources = sorted(s for (s,) in db.execute(select(Finding.source).where(Finding.org_id == user.org_id,
                                                                             Finding.in_triage.is_(True)).distinct()))
     if not since:
         user.last_findings_visit = utcnow()
         db.commit()
-    filtered = bool(brand_id or severity or source or since or reported or status or query_str)
+    filtered = bool(brand_id or severity or source or since or reported or status or tier_f or query_str)
     return render(request, "findings.html", {
         "rows": rows, "view": view, "views": VIEWS, "counts": counts, "brands": brands,
         "names": {b.id: b.name for b in brands}, "sources": sources, "brand_id": brand_id, "severity": severity,
         "status_f": status, "source": source, "since": since, "reported": reported, "last_visit": last_visit,
-        "filtered": filtered, "statuses": list(cases.TRANSITIONS), "query_str": query_str})
+        "filtered": filtered, "statuses": list(cases.TRANSITIONS), "tiers": tiers, "tier_f": tier_f,
+        "tier_info": TIERS, "query_str": query_str})
 
 
 @router.get("/findings/{fid:int}")

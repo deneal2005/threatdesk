@@ -12,7 +12,7 @@ from threatdesk.jsonutil import jsonable
 from threatdesk.models import (
     CampaignFinding, CaseEvent, CheckResult, Evidence, Finding, Indicator, Job, Notification, ReportIntake, Signal,
 )
-from threatdesk.scoring import VERDICT_EXCLUDED, severity, verdict
+from threatdesk.scoring import VERDICT_EXCLUDED, assess, severity, verdict
 
 
 def scope_key(brand_id: int | None, dedupe_key: str) -> str:
@@ -83,7 +83,7 @@ def rescore(db: Session, f: Finding) -> None:
     ran = len(db.scalars(select(CheckResult.id).where(CheckResult.finding_id == f.id,
                                                       CheckResult.status == "ran")).all())
     excluded = f.verdict == VERDICT_EXCLUDED
-    f.score = 0 if excluded else max(0, min(100, sum(s.points for s in signals)))
+    f.score = 0 if excluded else assess(signals, f.kind).score
     f.severity = severity(f.score)
     f.checks_ran = ran
     f.verdict = verdict(f.score, ran, excluded, f.kind)

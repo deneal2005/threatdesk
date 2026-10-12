@@ -6,6 +6,7 @@ import logging
 import os
 import secrets
 from dataclasses import dataclass, field
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from dotenv import load_dotenv
 
@@ -39,13 +40,29 @@ def _dns_servers(raw: str | None) -> tuple[str, ...]:
     return tuple(x.strip() for x in raw.split(",") if x.strip()) or DEFAULT_DNS
 
 
+# Query parameters added by hosting integrations (Supabase/Vercel/Prisma) that libpq rejects as unknown.
+FOREIGN_DB_PARAMS = ("supa", "pgbouncer", "connection_limit", "pool_timeout", "schema")
+
+
 def normalize_db_url(url: str) -> str:
     """Accept postgres:// and postgresql:// (Supabase pooler strings) and select the psycopg 3 driver."""
     if url.startswith("postgres://"):
         url = "postgresql://" + url[len("postgres://"):]
     if url.startswith("postgresql://"):
         url = "postgresql+psycopg://" + url[len("postgresql://"):]
+    if url.startswith("postgresql+psycopg://") and "?" in url:
+        p = urlsplit(url)
+        q = [(k, v) for k, v in parse_qsl(p.query, keep_blank_values=True) if k not in FOREIGN_DB_PARAMS]
+        url = urlunsplit(p._replace(query=urlencode(q)))
     return url
+
+
+def _is_serverless() -> bool:
+    """Vercel (and similar) run short-lived functions: no in-process worker, no long background downloads."""
+    raw = (_get("SERVERLESS") or "").lower()
+    if raw:
+        return raw in ("1", "true", "on")
+    return bool(_get("VERCEL"))
 
 
 @dataclass(frozen=True)
@@ -75,6 +92,7 @@ class Settings:
     start_worker: bool = True
     worker_concurrency: int = 3
     job_timeout: int = 120
+    job_retention_days: int = 30
     contacts_path: str = "contacts.yaml"
     public_base_url: str = ""
     dns_servers: tuple[str, ...] = DEFAULT_DNS
@@ -85,6 +103,8 @@ class Settings:
     phishtank_username: str = "threatdesk"
     apify_token: str | None = None
     apify_instagram_about: bool = False
+    serverless: bool = False
+    sentry_dsn: str | None = None
     extra: dict = field(default_factory=dict)
 
     @property
@@ -96,9 +116,11 @@ class Settings:
 
 
 def load_settings() -> Settings:
-    env = (_get("ENV") or "dev").lower()
     testing = os.getenv("THREATDESK_TESTING") == "1"
-    url = _get("DATABASE_URL") or ""
+    serverless = _is_serverless() and not testing
+    env = (_get("ENV") or ("prod" if serverless else "dev")).lower()
+    # The Supabase/Neon integrations for Vercel inject POSTGRES_URL (pooled) instead of DATABASE_URL.
+    url = _get("DATABASE_URL") or ("" if testing else _get("POSTGRES_URL") or "")
     if testing and not url:
         url = "sqlite+pysqlite:///:memory:"
     url = normalize_db_url(url)
@@ -123,17 +145,19 @@ def load_settings() -> Settings:
         smtp_host=_get("SMTP_HOST"), smtp_port=_int("SMTP_PORT", 587), smtp_user=_get("SMTP_USER"),
         smtp_password=_get("SMTP_PASSWORD"), smtp_from=_get("SMTP_FROM"), smtp_to=_get("SMTP_TO"),
         enable_screenshots=(_get("ENABLE_SCREENSHOTS") or "").lower() == "true",
-        start_worker=(_get("START_WORKER") or "true").lower() != "false" and not testing,
+        start_worker=not testing and (_get("START_WORKER") or ("false" if serverless else "true")).lower() != "false",
         worker_concurrency=_int("WORKER_CONCURRENCY", 3), job_timeout=_int("JOB_TIMEOUT", 120),
+        job_retention_days=max(0, _int("JOB_RETENTION_DAYS", 30)),
         contacts_path=_get("CONTACTS_PATH") or "contacts.yaml",
         public_base_url=(_get("PUBLIC_BASE_URL") or "").rstrip("/"),
         dns_servers=_dns_servers(_get("DNS_SERVERS")),
-        scam_lists=(_get("SCAM_LISTS") or "on").lower() not in ("off", "false", "0"),
+        scam_lists=(_get("SCAM_LISTS") or ("off" if serverless else "on")).lower() not in ("off", "false", "0"),
         scam_list_exclude=tuple(x.strip().lower() for x in (_get("SCAM_LIST_EXCLUDE") or "").split(",") if x.strip()),
-        cache_dir=_get("CACHE_DIR") or ".cache",
+        cache_dir=_get("CACHE_DIR") or ("/tmp/threatdesk-cache" if serverless else ".cache"),
         phishtank_app_key=_get("PHISHTANK_APP_KEY"), phishtank_username=_get("PHISHTANK_USERNAME") or "threatdesk",
         apify_token=_get("APIFY_TOKEN"),
         apify_instagram_about=(_get("APIFY_INSTAGRAM_ABOUT") or "").lower() == "true",
+        serverless=serverless, sentry_dsn=_get("SENTRY_DSN"),
     )
 
 

@@ -2,48 +2,79 @@
 from __future__ import annotations
 
 from threatdesk import images
+from threatdesk.brands import publisher_key
 from threatdesk.checks.base import Ctx, EvidenceItem, get_json
 from threatdesk.checks.content import text_signals
 from threatdesk.checks.domain import _parse_wayback_ts, registrable_domain
 from threatdesk.checks.rdap import parse_domain_rdap, rdap_lookup
 from threatdesk.db import utcnow
 from threatdesk.indicators import host_of
+from threatdesk.lookalike import best_match, best_title_match
 from threatdesk.safety import IMAGE_MAX_BYTES, InvalidInput, safe_fetch
 from threatdesk.scoring import Scorecard
-from threatdesk.scoring_helpers import name_similarity, parse_date
-
-from threatdesk.lookalike import find_lookalike
+from threatdesk.scoring_helpers import parse_date
 
 ICON_FORMATS = {"PNG", "JPEG", "WEBP", "GIF"}
 
 
+GENERIC_PACKAGE_PARTS = {"com", "org", "net", "in", "co", "io", "app", "apps", "android", "mobile", "ios", "www",
+                         "official", "release", "prod", "client", "main", "application"}
+
+
+def package_lookalike(brand, package: str, kind: str) -> str | None:
+    """Why a package/bundle id imitates the brand: an official app's namespace or a brand-like segment."""
+    pkg = (package or "").lower()
+    if not pkg or "." not in pkg:
+        return None
+    official = brand.official_apps.get("android" if kind == "android" else "ios_bundles", []) or []
+    for off in official:
+        parts = off.lower().split(".")
+        if len(parts) >= 2 and len(parts[1]) >= 4 and parts[1] not in GENERIC_PACKAGE_PARTS:
+            ns = ".".join(parts[:2])
+            if pkg.startswith(ns + ".") and pkg != off.lower():
+                return f"uses the namespace {ns} of official app {off}"
+    refs = brand.name_references()
+    for seg in (p for p in pkg.split(".") if p not in GENERIC_PACKAGE_PARTS):
+        hit = best_match(seg, refs)
+        if hit and hit[0].strong(brand.lookalike_threshold):
+            return f"segment '{seg}' imitates {hit[1]} ({hit[0].explain()})"
+    return None
+
+
 def impersonation(card: Scorecard, ctx_brand, title: str, app_id: str, kind: str, developer: str,
-                  official_publisher: str | None = None) -> dict:
+                  official_publisher: str | None = None, package: str = "") -> dict:
+    """Identity signals for a store listing: title, developer name and package id compared with the brand.
+
+    A different publisher alone is not a signal (resellers, banks' partners and unrelated apps all have one);
+    it is reported as context in the evidence of a title match."""
     if not ctx_brand.name:
         return {"note": "No brand selected: no impersonation check"}
     if official_publisher or ctx_brand.is_official_asset(kind, app_id):
         return {"official": True}
-
-    dev = developer or "unknown developer"
-    # 1. Check title with explainable look-alike classifier
-    match = find_lookalike(title, targets=ctx_brand.terms())
-    # 2. Also check app package identifier core (e.g. com.acme.bank.fake -> fake / acme)
-    if not match and app_id:
-        pkg_core = app_id.split(".")[-1] if "." in app_id else app_id
-        match = find_lookalike(pkg_core, targets=ctx_brand.terms())
-
-    if match:
-        card.add("app_impersonation",
-                 f"'{title}' by {dev} resembles {ctx_brand.name} · {match.label}: {match.explanation}")
-        return {"similar_to": match.target, "lookalike": match.as_dict()}
-
-    t = (title or "").lower()
-    for term in ctx_brand.terms():
-        if name_similarity(title, term) >= 80 or (len(term) >= 3 and term in t):
-            card.add("app_impersonation", f"'{title}' by {dev} resembles "
-                                          f"{ctx_brand.name} but is not one of its apps")
-            return {"similar_to": term}
-    return {}
+    out: dict = {}
+    th = ctx_brand.lookalike_threshold
+    hit = best_title_match(title or "", ctx_brand.name_references())
+    if hit and hit[0].strong(th):
+        m, label = hit
+        card.add("app_impersonation", f"'{title}' resembles {label} ({m.explain()}); published by "
+                                      f"{developer or 'an unknown developer'}, which is not an official publisher")
+        out["similar_to"], out["title_match"] = m.reference, m.as_dict()
+    elif hit:
+        out["title_mentions"] = hit[0].as_dict()
+    if developer:
+        refs = ctx_brand.name_references() | {p.lower(): f"listed publisher '{p}'"
+                                              for p in ctx_brand.official_publishers()}
+        dev = best_match(developer, refs)
+        if dev is None and publisher_key(developer):
+            dev = best_match(publisher_key(developer), {publisher_key(r) or r: lb for r, lb in refs.items()})
+        if dev and dev[0].strong(th):
+            card.add("app_publisher_lookalike", f"developer '{developer}' resembles {dev[1]} ({dev[0].explain()}) "
+                                                f"but is not one of the brand's publishers")
+            out["publisher_match"] = dev[0].as_dict()
+    if why := package_lookalike(ctx_brand, package or app_id, kind):
+        card.add("app_package_lookalike", f"{package or app_id}: {why}")
+        out["package_lookalike"] = why
+    return out
 
 
 async def check_icon(ctx: Ctx, icon_url: str | None, kind: str, app_id: str):

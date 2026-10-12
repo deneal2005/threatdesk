@@ -1,253 +1,55 @@
-"""Unit tests for explainable look-alike detection."""
+"""Look-alike engine: substitutions, spacing, added words, typos, and names that must NOT match."""
 import pytest
 
-from threatdesk.brands import BrandContext
-from threatdesk.checks.app_common import impersonation
-from threatdesk.checks.social import social_signals
-from threatdesk.lookalike import (
-    CATEGORY_ADDED_TERMS,
-    CATEGORY_DELETION,
-    CATEGORY_HOMOGLYPH,
-    CATEGORY_INSERTION,
-    CATEGORY_SPACING,
-    CATEGORY_SUBSTITUTION,
-    CATEGORY_SWAP,
-    compare_lookalike,
-    find_lookalike,
-)
-from threatdesk.scoring import Scorecard
+from threatdesk.lookalike import best_title_match, compare, is_platform_id, skeleton
 
 
-BRAND = BrandContext(
-    name="Acme Bank",
-    keywords=["acme", "acmebank"],
-    official_domains=["acmebank.com"],
-    official_handles={"instagram": ["acmebank"], "telegram": ["acmebank"]},
-    official_apps={"android": ["com.acme.bank"], "ios": ["1234567890"], "publishers": ["Acme Financial Group"]},
-)
+@pytest.mark.parametrize("candidate, reference, technique", [
+    ("acmeb4nk", "acmebank", "character substitution: 4→a"),
+    ("acrnebank", "acmebank", "rn→m"),
+    ("аcmebank", "acmebank", "(non-Latin)"),                        # Cyrillic а
+    ("acme_bank", "Acme Bank", "different spacing or punctuation"),
+    ("acme.bank.help", "acmebank", "added words: help"),
+    ("acmebankofficial", "acmebank", "added words: official"),
+    ("theacmebank", "acmebank", "added words: the"),
+    ("acmebank2024", "acmebank", "added words: 2024"),
+    ("Acme Bank Customer Care", "Acme Bank", "added words: customercare"),
+    ("acmebnak", "acmebank", "typo: 1 character"),
+    ("acmebnak_support", "acmebank", "typo: 1 character"),
+])
+def test_impersonation_patterns_are_detected_and_explained(candidate, reference, technique):
+    m = compare(candidate, reference)
+    assert m is not None and m.strong(80), (candidate, m)
+    assert technique in m.explain()
 
 
-def test_character_swaps():
-    # Handle adjacent swap
-    m1 = compare_lookalike("amcebank", "acmebank")
-    assert m1 is not None and m1.category == CATEGORY_SWAP
-    assert "Swapped" in m1.explanation and "mc" in m1.explanation
-
-    m2 = compare_lookalike("acmebnak", "acmebank")
-    assert m2 is not None and m2.category == CATEGORY_SWAP
-    assert "na" in m2.explanation
-
-    # Multi-word app title adjacent swap
-    m3 = compare_lookalike("Acme Bnak", "Acme Bank")
-    assert m3 is not None and m3.category == CATEGORY_SWAP
-    assert "bnak" in m3.candidate.lower()
+@pytest.mark.parametrize("candidate, reference", [
+    ("johnsmith", "acmebank"), ("Acme Plumbing Co", "Acme Bank"), ("acmepay", "Acme Bank"),
+    ("belle", "zelle"),                                  # short names: only exact (normalised) matches count
+    ("Bank Statement Reader", "Acme Bank"), ("instagram", "acmebank"),
+])
+def test_unrelated_names_are_not_lookalikes(candidate, reference):
+    m = compare(candidate, reference)
+    assert m is None or not m.strong(70), (candidate, m)
 
 
-def test_character_insertion():
-    m = compare_lookalike("accmebank", "acmebank")
-    assert m is not None and m.category == CATEGORY_INSERTION
-    assert "Extra letter" in m.explanation and "c" in m.explanation
+def test_containment_is_weak_and_never_strong():
+    m = compare("ACME Anvil Game", "acme")
+    assert m.score == 60 and not m.strong(70) and "among other words" in m.explain()
 
 
-def test_character_deletion():
-    m = compare_lookalike("acmbank", "acmebank")
-    assert m is not None and m.category == CATEGORY_DELETION
-    assert "Missing letter" in m.explanation and "e" in m.explanation
+def test_sensitivity_changes_what_counts():
+    m = compare("acmebnak_support", "acmebank")
+    assert m.strong(80) and not m.strong(90)
 
 
-def test_character_substitution():
-    m = compare_lookalike("acnebank", "acmebank")
-    assert m is not None and m.category == CATEGORY_SUBSTITUTION
-    assert "Replaced" in m.explanation and "m" in m.explanation and "n" in m.explanation
+def test_title_parts_and_identity():
+    m, label = best_title_match("Acme Bank - Mobile Banking", {"acme bank": "the brand"})
+    assert m.score == 100 and label == "the brand" and m.candidate == "Acme Bank - Mobile Banking"
+    assert skeleton("ACME-B4NK") == skeleton("acmebank")
+    assert compare("Acme", "Acme").explain() == "identical name"
 
 
-def test_spacing_and_hyphen_variations():
-    m1 = compare_lookalike("ac-me bank", "acme bank")
-    assert m1 is not None and m1.category == CATEGORY_SPACING
-
-    m2 = compare_lookalike("ac_mebank", "acmebank")
-    assert m2 is not None and m2.category == CATEGORY_SPACING
-
-    m3 = compare_lookalike("Ac-me Bank", "Acme Bank")
-    assert m3 is not None and m3.category == CATEGORY_SPACING
-
-
-def test_added_suspicious_terms():
-    # Multi-token with suspicious term
-    m1 = compare_lookalike("Acme Bank Support", "Acme Bank")
-    assert m1 is not None and m1.category == CATEGORY_ADDED_TERMS
-    assert "support" in m1.explanation
-
-    m2 = compare_lookalike("Acme Bank Official Help", "Acme Bank")
-    assert m2 is not None and m2.category == CATEGORY_ADDED_TERMS
-    assert "official" in m2.explanation or "help" in m2.explanation
-
-    # Delimited handle
-    m3 = compare_lookalike("acme_support", "acme")
-    assert m3 is not None and m3.category == CATEGORY_ADDED_TERMS
-
-    # Affix handle without delimiter
-    m4 = compare_lookalike("acmesupport", "acme")
-    assert m4 is not None and m4.category == CATEGORY_ADDED_TERMS
-    assert "support" in m4.explanation
-
-    m5 = compare_lookalike("officialacme", "acme")
-    assert m5 is not None and m5.category == CATEGORY_ADDED_TERMS
-    assert "official" in m5.explanation
-
-
-def test_lookalike_symbols():
-    m = compare_lookalike("acm0bank", "acmebank")
-    assert m is not None and (m.category == CATEGORY_HOMOGLYPH or m.category == CATEGORY_SUBSTITUTION)
-
-
-def test_exact_matches_not_flagged():
-    assert compare_lookalike("acmebank", "acmebank") is None
-    assert compare_lookalike("Acme Bank", "Acme Bank") is None
-    assert find_lookalike("acmebank", ["acme"], ["acmebank"]) is None
-    assert find_lookalike("@acmebank", ["acme"], ["acmebank"]) is None
-
-
-def test_unrelated_assets_not_flagged():
-    # Unrelated name sharing generic word "bank"
-    assert compare_lookalike("River Bank", "Acme Bank") is None
-    assert find_lookalike("River Bank", ["Acme Bank", "acme"]) is None
-
-    # Unrelated short words
-    assert compare_lookalike("mac", "acme") is None
-    assert compare_lookalike("action", "acme") is None
-
-
-def test_social_signals_lookalike_integration():
-    card = Scorecard()
-    out = social_signals(
-        card=card,
-        brand=BRAND,
-        platform="instagram",
-        handle="amcebank",
-        name="Acme Bank Official Support",
-        bio="Customer care helpline",
-    )
-    codes = {s.code for s in card.signals}
-    assert "handle_similar" in codes
-    assert "name_similar" in codes
-
-    # Verify explainable evidence format
-    handle_ev = [s.evidence for s in card.signals if s.code == "handle_similar"][0]
-    assert "Adjacent letter swap" in handle_ev or "Swapped" in handle_ev
-
-    name_ev = [s.evidence for s in card.signals if s.code == "name_similar"][0]
-    assert "Added suspicious word" in name_ev or "official" in name_ev.lower()
-
-    # Verify check outcome detail contains structured metadata
-    assert "lookalike" in out or "handle_lookalike" in out
-    assert out.get("name_similar") is True
-
-
-def test_social_signals_official_account_excluded():
-    card = Scorecard()
-    out = social_signals(
-        card=card,
-        brand=BRAND,
-        platform="instagram",
-        handle="acmebank",
-        name="Acme Bank",
-        bio="Official Instagram account of Acme Bank",
-    )
-    assert out == {"official": True}
-    assert card.score == 0
-    assert len(card.signals) == 0
-
-
-def test_app_impersonation_lookalike_integration():
-    card = Scorecard()
-    out = impersonation(
-        card=card,
-        ctx_brand=BRAND,
-        title="Acme Bnak Mobile",
-        app_id="com.amcebnak.fakeapp",
-        kind="android",
-        developer="Rogue Dev LLC",
-    )
-    assert "similar_to" in out
-    assert "lookalike" in out
-    assert out["lookalike"]["category"] == CATEGORY_SWAP
-
-    codes = {s.code for s in card.signals}
-    assert "app_impersonation" in codes
-    ev = [s.evidence for s in card.signals if s.code == "app_impersonation"][0]
-    assert "Adjacent letter swap" in ev
-
-
-def test_app_official_and_publisher_excluded():
-    # Official app bundle ID
-    card1 = Scorecard()
-    out1 = impersonation(
-        card=card1,
-        ctx_brand=BRAND,
-        title="Acme Bank Mobile",
-        app_id="com.acme.bank",
-        kind="android",
-        developer="Acme Bank",
-    )
-    assert out1 == {"official": True}
-    assert card1.score == 0
-
-    # Official publisher
-    card2 = Scorecard()
-    out2 = impersonation(
-        card=card2,
-        ctx_brand=BRAND,
-        title="Acme Bank Insurance",
-        app_id="com.acme.group.insurance",
-        kind="android",
-        developer="Acme Financial Group",
-        official_publisher="listed publisher Acme Financial Group",
-    )
-    assert out2 == {"official": True}
-    assert card2.score == 0
-
-
-def test_no_score_double_counting_on_lookalike():
-    card = Scorecard()
-    # Add handle similar
-    assert card.add("handle_similar", "First reason")
-    # Repeated add with different reason must NOT double count
-    assert not card.add("handle_similar", "Duplicate attempt")
-    assert card.score == 25
-    assert len(card.signals) == 1
-
-
-def test_empty_and_none_lookalike_fallbacks():
-    assert compare_lookalike("", "acme") is None
-    assert compare_lookalike("acme", "") is None
-    assert compare_lookalike(None, "acme") is None  # type: ignore[arg-type]
-    assert find_lookalike("", ["acme"]) is None
-    assert find_lookalike("!!!", ["acme"]) is None
-
-
-def test_research_ml_baseline_evaluation():
-    from scripts.research_ml_baseline import (
-        TEST_SET,
-        TRAIN_SET,
-        evaluate_dataset,
-        evaluate_predictions,
-        extract_features,
-        predict_trained_model,
-        train_classifier_pipeline,
-    )
-    res_train = evaluate_dataset(TRAIN_SET, "Train Set")
-    res_test = evaluate_dataset(TEST_SET, "Test Set")
-    assert res_train["precision"] >= 0.90
-    assert res_test["precision"] >= 0.85
-    assert res_test["f1"] >= 0.75
-
-    # Verify that the trained ML pipeline achieves perfect precision on held-out test
-    pipe = train_classifier_pipeline(TRAIN_SET)
-    assert pipe is not None
-    y_test = [r.ground_truth_label for r in TEST_SET]
-    y_pred = [predict_trained_model(pipe, extract_features(r))[0] for r in TEST_SET]
-    ml_res = evaluate_predictions(y_test, y_pred, "ML Pipeline Test")
-    assert ml_res["precision"] == 1.0
-    assert ml_res["f1"] == 1.0
-
+def test_platform_ids_are_not_names():
+    assert is_platform_id("UCabcdefghijklmnopqrstuv") and is_platform_id("did:plc:abc") and is_platform_id("1234567")
+    assert not is_platform_id("ucbank") and not is_platform_id("acmebank")
