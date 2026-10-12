@@ -39,8 +39,10 @@ def list_findings(request: Request, user: User = Depends(current_user), db: Sess
     base = scoped(Finding, user.org_id).where(Finding.in_triage.is_(True))
     if brand_id:
         base = base.where(Finding.brand_id == brand_id)
-    if severity in ("High", "Medium", "Low"):
-        base = base.where(Finding.severity == severity)
+    sev_raw = severity.strip().capitalize() if severity else ""
+    sev_norm = "High" if severity.lower() == "critical" else sev_raw
+    if sev_norm in ("High", "Medium", "Low"):
+        base = base.where(Finding.severity == sev_norm)
     if source:
         base = base.where(Finding.source == source)
     if reported:

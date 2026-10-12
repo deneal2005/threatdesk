@@ -24,6 +24,12 @@ TAB = {v: k for k, v in SEGMENTS.items()}
 CSRF = Depends(csrf_protect)
 
 
+@router.get("/assets")
+def assets_index_redirect():
+    return RedirectResponse("/brands", status_code=303)
+
+
+
 def _kind(segment: str) -> str:
     if segment not in SEGMENTS:
         raise HTTPException(404, "Not found.")

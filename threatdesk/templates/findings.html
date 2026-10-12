@@ -99,7 +99,7 @@
 </div>
 
 {% if rows %}
-<form method="post" action="/findings/bulk" onsubmit="return confirm('Are you sure you want to mark the selected finding(s) as false positives?');">
+<form method="post" action="/findings/bulk" class="bulk-form">
   {{ m.csrf() }}
   <div class="table-wrap">
     <table>

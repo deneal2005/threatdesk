@@ -40,7 +40,10 @@ def _form_page(request: Request, db: Session, user: User, status_code: int = 200
 
 @router.get("/investigate")
 def investigate_form(request: Request, user: User = Depends(current_user), db: Session = Depends(get_db)):
-    return _form_page(request, db, user)
+    url = request.query_params.get("url", "").strip()
+    bid_raw = request.query_params.get("brand_id", "").strip()
+    bid = int(bid_raw) if bid_raw.isdigit() else None
+    return _form_page(request, db, user, value=url, brand_id=bid)
 
 
 @router.post("/investigate", dependencies=[CSRF])
