@@ -245,8 +245,34 @@ def scan_status(text: str | None) -> str:
     return "off"
 
 
+def scan_source_badge(text: str | None, candidates: int = 0) -> dict[str, str]:
+    """Structured status badge for discovery adapter outcomes: outcome, icon, label, safe summary."""
+    t = (text or "").lower()
+    if t.startswith("ok"):
+        if candidates > 0:
+            return {"class": "ok", "icon": "✓", "label": "Found candidates", "summary": text or ""}
+        return {"class": "clean", "icon": "○", "label": "No threats found", "summary": text or ""}
+    if "ran out of time" in t or "timeout" in t:
+        return {"class": "timeout", "icon": "⏱", "label": "Timed out", "summary": "Adapter timed out"}
+    if t.startswith("failed") or t.startswith("error"):
+        safe_msg = "Adapter request failed"
+        for w in t.split():
+            if w.isdigit() and len(w) == 3:
+                safe_msg = f"HTTP {w}"
+                break
+        return {"class": "bad", "icon": "⚠", "label": "Failed", "summary": safe_msg}
+    if t.startswith("not configured"):
+        return {"class": "off", "icon": "⚙", "label": "Not configured", "summary": "Optional adapter not configured"}
+    if t.startswith("not possible") or t.startswith("skipped"):
+        return {"class": "off", "icon": "⊘", "label": "Skipped", "summary": text or "Target assets not configured"}
+    return {"class": "off", "icon": "•", "label": "Pending", "summary": text or ""}
+
+
+from threatdesk.web.explain_data import sev_badge, status_icon
+
 FILTERS = {
-    "scan_source": scan_source, "scan_status": scan_status, "status": status_label, "kind": kind_label,
+    "scan_source": scan_source, "scan_status": scan_status, "scan_source_badge": scan_source_badge,
+    "status": status_label, "status_icon": status_icon, "kind": kind_label,
     "check": check_label, "check_status": check_status_label, "evidence_kind": evidence_label,
-    "indicator": indicator_label, "source": source_label,
+    "indicator": indicator_label, "source": source_label, "sev_badge": sev_badge,
 }
