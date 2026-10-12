@@ -1,0 +1,42 @@
+# Platform takedown contacts used in takedown packets.
+#
+# ThreatDesk NEVER invents contact addresses or report URLs. Every value below is empty on purpose.
+# Fill them in yourself from each platform's official abuse / impersonation / trademark reporting pages,
+# and re-check them periodically: platforms move these pages.
+#
+# Domain registrar and hosting abuse contacts are NOT configured here: they come from RDAP data captured
+# during the investigation of each finding.
+
+platforms:
+  play:          # Google Play (Android apps)
+    report_url: ""
+    email: ""
+    notes: ""
+  appstore:      # Apple App Store (iOS apps)
+    report_url: ""
+    email: ""
+    notes: ""
+  youtube:
+    report_url: ""
+    email: ""
+    notes: ""
+  telegram:
+    report_url: ""
+    email: ""
+    notes: ""
+  instagram:
+    report_url: ""
+    email: ""
+    notes: ""
+  x:
+    report_url: ""
+    email: ""
+    notes: ""
+  facebook:
+    report_url: ""
+    email: ""
+    notes: ""
+  bluesky:
+    report_url: ""
+    email: ""
+    notes: ""

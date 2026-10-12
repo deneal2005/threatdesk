@@ -1,0 +1,62 @@
+{% import "macros.html" as m with context %}<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="htmx-config" content='{"includeIndicatorStyles": false, "allowEval": false, "allowScriptTags": false}'>
+<meta name="color-scheme" content="light">
+<title>{% block title %}ThreatDesk{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/static/app.css?v={{ asset_version('app.css') }}">
+<script src="https://unpkg.com/htmx.org@1.9.12/dist/htmx.min.js" defer></script>
+</head>
+<body hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'>
+<a class="skip" href="#content">Skip to content</a>
+{% if user %}
+{% set cur_path = request.url.path %}
+<div class="shell">
+  <nav class="rail-nav" aria-label="Main">
+    <a href="/" class="wordmark">{{ m.mark() }}<b>ThreatDesk</b></a>
+    <ul class="nav">
+      <li><a href="/" {% if cur_path == "/" %}aria-current="page"{% endif %}>{{ m.icon("overview") }}<span class="lbl">Overview</span></a></li>
+      <li><a href="/investigate" {% if cur_path.startswith("/investigate") %}aria-current="page"{% endif %}>{{ m.icon("investigate") }}<span class="lbl">Investigate</span></a></li>
+      <li><a href="/findings" {% if cur_path.startswith("/findings") %}aria-current="page"{% endif %}>{{ m.icon("findings") }}<span class="lbl">Findings</span>{% if new_count %}<span class="count hot" title="{{ new_count }} new">{{ new_count }}</span>{% endif %}</a></li>
+      <li><a href="/brands" {% if cur_path.startswith("/brands") %}aria-current="page"{% endif %}>{{ m.icon("brands") }}<span class="lbl">Brands</span></a></li>
+      <li><a href="/campaigns" {% if cur_path.startswith("/campaigns") %}aria-current="page"{% endif %}>{{ m.icon("campaigns") }}<span class="lbl">Campaigns</span></a></li>
+      <li><a href="/reports" {% if cur_path.startswith("/reports") %}aria-current="page"{% endif %}>{{ m.icon("reports") }}<span class="lbl">Reports</span></a></li>
+    </ul>
+    <div class="nav-foot">
+      <ul class="nav">
+        <li><a href="/notifications" {% if cur_path.startswith("/notifications") %}aria-current="page"{% endif %}>{{ m.icon("alerts") }}<span class="lbl">Alerts</span>{% if unread %}<span class="count" title="{{ unread }} unread">{{ unread }}</span>{% endif %}</a></li>
+        <li><a href="/settings" {% if cur_path.startswith("/settings") %}aria-current="page"{% endif %}>{{ m.icon("settings") }}<span class="lbl">Settings</span></a></li>
+      </ul>
+      <div class="who">{{ user.email }}</div>
+      <form method="post" action="/logout">{{ m.csrf() }}<button>{{ m.icon("logout") }}<span class="lbl">Log out</span></button></form>
+    </div>
+  </nav>
+  <main class="main" id="content">
+    {% if msg %}<p class="flash" role="status">{{ msg }}</p>{% endif %}
+    {% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+{% else %}
+<div class="plain">
+  <header class="plain-top">
+    {% block plain_brand %}<a href="/" class="wordmark">{{ m.mark() }}<b>ThreatDesk</b></a>{% endblock %}
+    {% block plain_nav %}<span class="small"><a href="/login">Log in</a> <span class="faint">·</span> <a href="/signup">Create an organisation</a></span>{% endblock %}
+  </header>
+  <main class="plain-main" id="content">
+    <div class="{% block plain_width %}sheet-narrow{% endblock %}">
+      {% if msg %}<p class="flash" role="status">{{ msg }}</p>{% endif %}
+      {% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+      {% block content_plain %}{{ self.content() }}{% endblock %}
+    </div>
+  </main>
+  <footer class="plain-foot">{% block plain_foot %}ThreatDesk never calls anything “safe”. Findings are leads for people to review.{% endblock %}</footer>
+</div>
+{% endif %}
+</body>
+</html>

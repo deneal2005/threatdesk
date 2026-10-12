@@ -1,0 +1,12 @@
+.env
+.env.bak*
+*.db
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.cache/
+.pgdata/
+testset.results.csv
+server.log
+server.err

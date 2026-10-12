@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: threatdesk
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: ENV
+        value: prod
+      - key: DATABASE_URL          # Supabase connection pooler string (Settings > Database > Connection pooling)
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: CRON_SECRET
+        generateValue: true
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: YOUTUBE_API_KEY
+        sync: false
+      - key: SAFE_BROWSING_API_KEY
+        sync: false
+      - key: VT_API_KEY
+        sync: false
+      - key: URLHAUS_AUTH_KEY
+        sync: false
+      - key: GOOGLE_CSE_KEY
+        sync: false
+      - key: GOOGLE_CSE_CX
+        sync: false
+      - key: BRAVE_API_KEY
+        sync: false
+      - key: WEBHOOK_URL
+        sync: false

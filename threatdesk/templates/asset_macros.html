@@ -1,0 +1,42 @@
+{# Shared pieces for official assets: platform marks, status badges, row actions. #}
+{% import "macros.html" as m with context %}
+
+{% macro pmark(platform) %}<span class="pmark pm-{{ platform }}" aria-hidden="true">{{ platforms[platform][1] if platform in platforms else ("A" if platform == "android" else ("i" if platform == "ios" else "··")) }}</span>{% endmacro %}
+
+{% macro badges(r, methods) %}
+<span class="badges">
+  {% if r.is_primary %}<span class="badge b-primary">Primary</span>{% endif %}
+  {% if r.verification_status == "verified" %}<span class="badge b-verified" title="Verified {{ r.verified_at|dt }}{% if r.verification_method %} · {{ methods.get(r.verification_method, r.verification_method) }}{% endif %}"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6.2l2.3 2.3 4.7-5"/></svg>Verified</span>
+  {% elif r.verification_status == "pending" %}<span class="badge b-pending" role="status">Checking…</span>
+  {% else %}<span class="badge b-claimed" title="Added by your team; not independently confirmed yet">Added by you</span>{% endif %}
+  {% if not r.active %}<span class="badge b-off" title="Kept for your records; not treated as official">Inactive</span>{% endif %}
+</span>
+{% endmacro %}
+
+{# Row actions: Check (when useful), Edit, and a menu with Make primary + Remove (confirmed). #}
+{% macro actions(brand, segment, r, label) %}
+<div class="asset-actions">
+  {% if r.verification_status == "unverified" and r.active %}
+  <form method="post" action="/brands/{{ brand.id }}/{{ segment }}/{{ r.id }}/check">{{ m.csrf() }}<button class="btn quiet sm" aria-label="Check {{ label }}">Check</button></form>
+  {% endif %}
+  <a class="btn ghost sm" href="/brands/{{ brand.id }}/{{ segment }}/{{ r.id }}/edit" aria-label="Edit {{ label }}">Edit</a>
+  <details class="menu">
+    <summary class="btn ghost sm" aria-label="More actions for {{ label }}"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="4.5" cy="10" r="1.9"/><circle cx="10" cy="10" r="1.9"/><circle cx="15.5" cy="10" r="1.9"/></svg></summary>
+    <div class="menu-pop">
+      {% if not r.is_primary %}<form method="post" action="/brands/{{ brand.id }}/{{ segment }}/{{ r.id }}/primary">{{ m.csrf() }}<button class="menu-item">Make primary</button></form>{% endif %}
+      {% if r.verification_status == "verified" %}<form method="post" action="/brands/{{ brand.id }}/{{ segment }}/{{ r.id }}/check">{{ m.csrf() }}<button class="menu-item">Check again</button></form>{% endif %}
+      <details class="confirm">
+        <summary class="menu-item danger"><span class="if-closed">Remove…</span><span class="if-open">Keep it</span></summary>
+        <div class="confirm-box" role="group" aria-label="Confirm removal">
+          <p>Remove <strong>{{ label }}</strong>? ThreatDesk stops treating it as official. Other entries are not affected.</p>
+          <form method="post" action="/brands/{{ brand.id }}/{{ segment }}/{{ r.id }}/delete">{{ m.csrf() }}<button class="btn danger sm">Yes, remove</button></form>
+        </div>
+      </details>
+    </div>
+  </details>
+</div>
+{% endmacro %}
+
+{% macro last_check(r) %}{% if r.verification_note and r.verification_status != "verified" %}<span class="check-note"><span class="sr">Last check: </span>{{ r.verification_note }}</span>{% endif %}{% endmacro %}
+
+{% macro meta_line(parts) %}{% set p = parts|select|list %}{% if p %}<span class="cell-sub">{{ p|join(" · ") }}</span>{% endif %}{% endmacro %}
