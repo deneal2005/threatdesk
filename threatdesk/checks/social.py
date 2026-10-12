@@ -21,6 +21,9 @@ LOGIN_WALL = re.compile(r"^(instagram|facebook|x|tiktok|log ?in|login • instag
                         r"page not found|sorry, this page isn't available\.?)$", re.I)
 
 
+from threatdesk.lookalike import find_lookalike
+
+
 def social_signals(card: Scorecard, brand: BrandContext, platform: str, handle: str, name: str, bio: str,
                    created=None, followers: int | None = None, prefix: str = "") -> dict:
     if not brand.name:
@@ -29,17 +32,36 @@ def social_signals(card: Scorecard, brand: BrandContext, platform: str, handle: 
     if hkey and brand.is_official_asset(platform, hkey):
         return {"official": True}
     out: dict = {}
-    sims = [(handle_similarity(hkey, h), h) for h in brand.all_handles() if h and not h.startswith("uc")]
-    if sims and hkey:
-        sim, best = max(sims)
-        if sim >= 80 and norm(hkey) != norm(best):
-            card.add("handle_similar", f"{prefix}@{handle} resembles official @{best} ({int(sim)}%)")
-            out["similar_to"] = best
-    for term in brand.terms():
-        if name and fuzz.token_set_ratio(name.lower(), term) >= 85:
-            card.add("name_similar", f"{prefix}display name '{name[:80]}' resembles {brand.name}")
-            out["name_similar"] = True
-            break
+
+    # 1. Handle look-alike classification against official handles and brand terms
+    eligible_handles = [h for h in brand.all_handles() if h and not h.startswith("uc")]
+    handle_match = find_lookalike(hkey, targets=brand.terms(), official_targets=eligible_handles)
+    if handle_match:
+        card.add("handle_similar",
+                 f"{prefix}@{handle} resembles official @{handle_match.target} · {handle_match.label}: {handle_match.explanation}")
+        out["similar_to"] = handle_match.target
+        out["handle_lookalike"] = handle_match.as_dict()
+    else:
+        sims = [(handle_similarity(hkey, h), h) for h in eligible_handles]
+        if sims and hkey:
+            sim, best = max(sims)
+            if sim >= 80 and norm(hkey) != norm(best):
+                card.add("handle_similar", f"{prefix}@{handle} resembles official @{best} ({int(sim)}%)")
+                out["similar_to"] = best
+
+    # 2. Display name look-alike classification
+    name_match = find_lookalike(name, targets=brand.terms()) if name else None
+    if name_match:
+        card.add("name_similar",
+                 f"{prefix}Display name '{name[:80]}' resembles {brand.name} · {name_match.label}: {name_match.explanation}")
+        out["name_similar"] = True
+        out["name_lookalike"] = name_match.as_dict()
+    elif name:
+        for term in brand.terms():
+            if fuzz.token_set_ratio(name.lower(), term) >= 85:
+                card.add("name_similar", f"{prefix}display name '{name[:80]}' resembles {brand.name}")
+                out["name_similar"] = True
+                break
     born = parse_date(created)
     if born:
         days = (utcnow() - born).days

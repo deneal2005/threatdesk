@@ -39,9 +39,9 @@
   </details>
 </div>
 
+{% if rows %}
 <form method="post" action="/findings/bulk">
   {{ m.csrf() }}
-  {% if rows %}
   <div class="table-wrap">
     <table>
       <thead><tr><th class="tight"><span class="sr">Select</span></th><th class="tight">Score</th><th>Finding</th><th class="hide-sm">Status</th><th class="hide-sm">Brand</th><th class="tight">Last seen</th></tr></thead>
@@ -68,12 +68,33 @@
     <label class="check"><input type="checkbox" name="whitelist" value="1"> Add to allow list so scans skip them</label>
     <button class="btn">Mark false positive</button>
   </div>
-  {% elif filtered %}
-  <div class="empty"><h3>No findings match these filters</h3><p>Clear a filter or two to see more.</p><a class="btn quiet" href="/findings">Clear filters</a></div>
-  {% elif view == "all" %}
-  <div class="empty"><h3>No findings yet</h3><p>Findings come from scans, customer reports and investigations you save.</p><a class="btn quiet" href="/brands">Go to brands</a></div>
-  {% else %}
-  <div class="empty"><h3>Nothing open</h3><p>Every finding has been dealt with. New ones from scans and customer reports will appear here.</p><a class="btn quiet" href="/findings?view=all">See all findings</a></div>
-  {% endif %}
 </form>
+{% elif counts['all'] == 0 and brands %}
+  {% set target_brand = (brands|selectattr("id", "equalto", brand_id)|first) if brand_id else brands[0] %}
+  <div class="empty">
+    <h3>No findings yet</h3>
+    <p>Run automated discovery to detect typosquats, impersonator social profiles, and fraudulent mobile apps.</p>
+    <form method="post" action="/brands/{{ target_brand.id }}/scan" class="empty-cta-form">
+      {{ m.csrf() }}
+      <button class="btn" type="submit">
+        {{ m.icon("scan") }} Run First Brand Discovery Scan ({{ target_brand.name }})
+      </button>
+    </form>
+    {% if brands|length > 1 %}
+    <p class="small muted section-gap">Or choose another brand to scan: {% for b in brands %}{% if b.id != target_brand.id %}<a href="/findings?brand_id={{ b.id }}">{{ b.name }}</a>{% if not loop.last %}, {% endif %}{% endif %}{% endfor %}</p>
+    {% endif %}
+  </div>
+{% elif counts['all'] == 0 and not brands %}
+  <div class="empty">
+    <h3>No brands registered yet</h3>
+    <p>Register your official brand identity (domains, handles, mobile apps) to begin continuous digital risk protection.</p>
+    <a class="btn" href="/brands/new">{{ m.icon("plus") }} Register Brand Profile</a>
+  </div>
+{% elif filtered %}
+  <div class="empty"><h3>No findings match these filters</h3><p>Clear a filter or two to see more.</p><a class="btn quiet" href="/findings">Clear filters</a></div>
+{% elif view == "all" %}
+  <div class="empty"><h3>No findings yet</h3><p>Findings come from scans, customer reports and investigations you save.</p><a class="btn quiet" href="/brands">Go to brands</a></div>
+{% else %}
+  <div class="empty"><h3>Nothing open</h3><p>Every finding has been dealt with. New ones from scans and customer reports will appear here.</p><a class="btn quiet" href="/findings?view=all">See all findings</a></div>
+{% endif %}
 {% endblock %}

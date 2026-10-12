@@ -12,6 +12,8 @@ from threatdesk.safety import IMAGE_MAX_BYTES, InvalidInput, safe_fetch
 from threatdesk.scoring import Scorecard
 from threatdesk.scoring_helpers import name_similarity, parse_date
 
+from threatdesk.lookalike import find_lookalike
+
 ICON_FORMATS = {"PNG", "JPEG", "WEBP", "GIF"}
 
 
@@ -21,10 +23,24 @@ def impersonation(card: Scorecard, ctx_brand, title: str, app_id: str, kind: str
         return {"note": "No brand selected: no impersonation check"}
     if official_publisher or ctx_brand.is_official_asset(kind, app_id):
         return {"official": True}
+
+    dev = developer or "unknown developer"
+    # 1. Check title with explainable look-alike classifier
+    match = find_lookalike(title, targets=ctx_brand.terms())
+    # 2. Also check app package identifier core (e.g. com.acme.bank.fake -> fake / acme)
+    if not match and app_id:
+        pkg_core = app_id.split(".")[-1] if "." in app_id else app_id
+        match = find_lookalike(pkg_core, targets=ctx_brand.terms())
+
+    if match:
+        card.add("app_impersonation",
+                 f"'{title}' by {dev} resembles {ctx_brand.name} · {match.label}: {match.explanation}")
+        return {"similar_to": match.target, "lookalike": match.as_dict()}
+
     t = (title or "").lower()
     for term in ctx_brand.terms():
         if name_similarity(title, term) >= 80 or (len(term) >= 3 and term in t):
-            card.add("app_impersonation", f"'{title}' by {developer or 'unknown developer'} resembles "
+            card.add("app_impersonation", f"'{title}' by {dev} resembles "
                                           f"{ctx_brand.name} but is not one of its apps")
             return {"similar_to": term}
     return {}

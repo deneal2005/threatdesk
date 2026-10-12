@@ -32,14 +32,27 @@ def analyze_text(text: str, brand: BrandContext, ai: dict | None, extra_urls: li
     for u in ind["url"] + list(extra_urls or []):
         if h := host_of(u):
             indicators.add(("domain", registrable_domain(h)))
+    from threatdesk.lookalike import find_lookalike
     if ind["handle"]:
-        best = max(((handle_similarity(h, o), h, o) for h in ind["handle"] for o in brand.all_handles()),
-                   default=(0, "", ""))
-        sim, h, o = best
-        if sim >= 80 and norm(h) != norm(o):
-            card.add("handle_similar", f"@{h} in the message resembles official @{o} ({int(sim)}%)")
-        checks.append({"check": "handle_similarity", "status": "ran",
-                       "detail": {"similar_to": o if sim >= 80 and norm(h) != norm(o) else None, "handles": ind["handle"]}})
+        match_tuple = None
+        for h in ind["handle"]:
+            m = find_lookalike(h, targets=brand.terms(), official_targets=list(brand.all_handles()))
+            if m:
+                match_tuple = (m, h)
+                break
+        if match_tuple:
+            m, h = match_tuple
+            card.add("handle_similar", f"@{h} in the message resembles official @{m.target} · {m.label}: {m.explanation}")
+            checks.append({"check": "handle_similarity", "status": "ran",
+                           "detail": {"similar_to": m.target, "lookalike": m.as_dict(), "handles": ind["handle"]}})
+        else:
+            best = max(((handle_similarity(h, o), h, o) for h in ind["handle"] for o in brand.all_handles()),
+                       default=(0, "", ""))
+            sim, h, o = best
+            if sim >= 80 and norm(h) != norm(o):
+                card.add("handle_similar", f"@{h} in the message resembles official @{o} ({int(sim)}%)")
+            checks.append({"check": "handle_similarity", "status": "ran",
+                           "detail": {"similar_to": o if sim >= 80 and norm(h) != norm(o) else None, "handles": ind["handle"]}})
     else:
         checks.append({"check": "handle_similarity", "status": "not_possible",
                        "detail": {"reason": "no @handles in the message"}})
