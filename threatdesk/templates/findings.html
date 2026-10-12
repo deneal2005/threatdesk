@@ -2,7 +2,7 @@
 {% import "macros.html" as m with context %}
 {% block title %}Findings &amp; Triage · ThreatDesk{% endblock %}
 {% block content %}
-{% set keep %}{% if brand_id %}&amp;brand_id={{ brand_id }}{% endif %}{% if severity %}&amp;severity={{ severity }}{% endif %}{% if source %}&amp;source={{ source|urlencode }}{% endif %}{% if since %}&amp;since=1{% endif %}{% if reported %}&amp;reported=1{% endif %}{% if tier_f %}&amp;tier={{ tier_f }}{% endif %}{% if query_str %}&amp;q={{ query_str|urlencode }}{% endif %}{% endset %}
+{% set keep %}{% if brand_id %}&amp;brand_id={{ brand_id }}{% endif %}{% if severity %}&amp;severity={{ severity }}{% endif %}{% if source %}&amp;source={{ source|urlencode }}{% endif %}{% if since %}&amp;since={{ since_value }}{% endif %}{% if reported %}&amp;reported=1{% endif %}{% if tier_f %}&amp;tier={{ tier_f }}{% endif %}{% if query_str %}&amp;q={{ query_str|urlencode }}{% endif %}{% endset %}
 
 <header class="page-head">
   <div class="titles">
@@ -34,6 +34,9 @@
       {% if severity %}<input type="hidden" name="severity" value="{{ severity }}">{% endif %}
       {% if source %}<input type="hidden" name="source" value="{{ source }}">{% endif %}
       {% if tier_f %}<input type="hidden" name="tier" value="{{ tier_f }}">{% endif %}
+      {% if status_f %}<input type="hidden" name="status" value="{{ status_f }}">{% endif %}
+      {% if since %}<input type="hidden" name="since" value="{{ since_value }}">{% endif %}
+      {% if reported %}<input type="hidden" name="reported" value="1">{% endif %}
       <div class="search-wrap">
         <label for="search-input" class="sr">Search findings</label>
         <input id="search-input" type="search" name="q" value="{{ query_str or '' }}" placeholder="Search domain, name, or URL..." class="search-input">
@@ -86,14 +89,15 @@
           <label for="f-source">Discovery Source</label>
           <select id="f-source" name="source">
             <option value="">Any source</option>
+            <option value="discovery" {% if source == "discovery" %}selected{% endif %}>Any automated scan</option>
             {% for s in sources %}
             <option value="{{ s }}" {% if source == s %}selected{% endif %}>{{ s|source }}</option>
             {% endfor %}
           </select>
         </div>
         <label class="check">
-          <input type="checkbox" name="since" value="1" {% if since %}checked{% endif %}>
-          New since my last visit{% if last_visit %} ({{ last_visit|ago }}){% endif %}
+          <input type="checkbox" name="since" value="{{ since_value }}" {% if since %}checked{% endif %}>
+          New since my last visit{% if since_at %} ({{ since_at|ago }}){% endif %}
         </label>
         <label class="check">
           <input type="checkbox" name="reported" value="1" {% if reported %}checked{% endif %}>
@@ -108,6 +112,8 @@
   </div>
 </div>
 
+{# Brand-only and Discovery views with nothing in them still offer a scan; any other filter just found no match #}
+{% set narrowed = severity or (source and source != "discovery") or since or reported or status_f or tier_f or query_str %}
 {% if rows %}
 <form method="post" action="/findings/bulk" data-confirm="Mark the selected findings as false positives?">
   {{ m.csrf() }}
@@ -174,7 +180,7 @@
     <button class="btn">Mark false positive</button>
   </div>
 </form>
-{% elif counts['all'] == 0 and brands %}
+{% elif counts['all'] == 0 and brands and not narrowed %}
   {% set target_brand = (brands|selectattr("id", "equalto", brand_id)|first) if brand_id else brands[0] %}
   <div class="empty">
     <h3>No findings yet</h3>
@@ -189,7 +195,7 @@
     <p class="small muted section-gap">Or choose another brand to scan: {% for b in brands %}{% if b.id != target_brand.id %}<a href="/findings?brand_id={{ b.id }}">{{ b.name }}</a>{% if not loop.last %}, {% endif %}{% endif %}{% endfor %}</p>
     {% endif %}
   </div>
-{% elif counts['all'] == 0 and not brands %}
+{% elif counts['all'] == 0 and not brands and not narrowed %}
   <div class="empty">
     <h3>No brands registered yet</h3>
     <p>Register your official brand identity (domains, handles, mobile apps) to begin continuous digital risk protection.</p>

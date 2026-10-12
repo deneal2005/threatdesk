@@ -19,8 +19,10 @@
 {% if user %}
 {% set cur_path = request.url.path %}
 {% set takedowns = "status=takedown_requested" in request.url.query %}
+{% set discovery = cur_path == "/findings" and request.query_params.get("source") == "discovery" %}
 {% if cur_path == "/" %}{% set section = "Dashboard" %}
 {% elif takedowns %}{% set section = "Actions" %}
+{% elif discovery %}{% set section = "Discovery" %}
 {% elif cur_path.startswith("/findings") %}{% set section = "Findings" %}
 {% elif cur_path.startswith("/investigate") %}{% set section = "Investigate" %}
 {% elif cur_path.startswith("/brands") %}{% set section = "Assets & Brands" %}
@@ -49,7 +51,7 @@
             </a>
           </li>
           <li>
-            <a href="/findings" {% if cur_path.startswith("/findings") and not takedowns %}aria-current="page"{% endif %} title="Triage Queue &amp; Detected Threats">
+            <a href="/findings" {% if cur_path.startswith("/findings") and not takedowns and not discovery %}aria-current="page"{% endif %} title="Triage Queue &amp; Detected Threats">
               {{ m.icon("findings") }}<span class="lbl">Findings</span>
               {% if new_count %}<span class="count hot" title="{{ new_count }} new">{{ new_count }}</span>{% endif %}
             </a>
@@ -60,10 +62,10 @@
             </a>
           </li>
           <li>
-            <span class="nav-item nav-disabled" title="Automated discovery runs continuously per protected brand">
+            <a href="/findings?view=all&amp;source=discovery" {% if discovery %}aria-current="page"{% endif %} title="Findings from automated discovery scans (they run on a schedule for every protected brand)">
               {{ m.icon("scan") }}<span class="lbl">Discovery</span>
               <span class="nav-tag faint">Auto</span>
-            </span>
+            </a>
           </li>
         </ul>
       </div>
