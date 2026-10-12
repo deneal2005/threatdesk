@@ -43,10 +43,18 @@ def dashboard_metrics(db: Session, org_id: int) -> dict:
     detect = [at - seen[fid] for fid, at in confirmed.items() if fid in seen]
     takedown = [at - confirmed[fid] for fid, at in taken.items() if fid in confirmed]
     decided = len(confirmed) + len(fps)
+    total_findings = db.scalar(select(func.count(Finding.id)).where(Finding.org_id == org_id)) or 0
+    monitoring_cnt = db.scalar(select(func.count(Finding.id)).where(Finding.org_id == org_id, Finding.status == "monitoring")) or 0
     return {
         "new": new,
         "open": {s: by_sev.get(s, 0) for s in ("High", "Medium", "Low")},
         "detect_confirm": _fmt(_avg(detect)), "detect_confirm_n": len(detect),
         "confirm_takedown": _fmt(_avg(takedown)), "confirm_takedown_n": len(takedown),
         "precision": f"{100 * len(confirmed) / decided:.0f}%" if decided else "-", "precision_n": decided,
+        "total_findings": total_findings,
+        "high_priority": by_sev.get("High", 0),
+        "requiring_review": new,
+        "monitoring_count": monitoring_cnt,
+        "confirmed_count": len(confirmed),
+        "taken_down_count": len(taken),
     }
