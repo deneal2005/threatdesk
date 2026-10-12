@@ -54,6 +54,5 @@
 {%- elif name == "close" %}<path d="M4.5 4.5l11 11M15.5 4.5l-11 11"/>
 {%- endif %}</svg>{% endmacro %}
 
-{# ThreatDesk mark: a shield holding the defang notation "[.]", the way every suspect link is shown in the app.
-   The dot is the one live signal colour; on the dark rail the shield inverts (see .rail-nav .mark in app.css). #}
-{% macro mark() %}<svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><path class="mark-shield" d="M12 1.6l8.6 3.3v6.6c0 5.1-3.5 8.9-8.6 10.6-5.1-1.7-8.6-5.5-8.6-10.6V4.9z" fill="#121A16"/><path class="mark-brackets" d="M9.6 7.4H7.6v8.4h2M14.4 7.4h2v8.4h-2" fill="none" stroke="#ECEEEA" stroke-width="1.8" stroke-linecap="square"/><rect class="mark-dot" x="10.85" y="13.3" width="2.3" height="2.5" rx=".5" fill="#2EC49A"/></svg>{% endmacro %}
+{# ThreatDesk mark: an S cut into a shield. Navy on light surfaces; on the dark rail it inverts (see .rail-nav .mark in app.css). #}
+{% macro mark() %}<svg class="mark" viewBox="200 130 860 960" aria-hidden="true"><path class="mark-shield" d="M628 158L1005 325Q1015 330 1015 345L1013 500Q1005 600 968 683L870 632Q902 550 905 390L635 268Q628 264 620 268L375 378Q342 395 345 425Q350 452 380 468L955 740Q900 880 628 1062Q330 880 265 632L390 688Q460 850 628 935Q740 870 810 790L300 545Q245 515 243 455L243 385Q248 325 300 298Z" fill="#0A1628"/></svg>{% endmacro %}

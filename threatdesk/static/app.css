@@ -104,8 +104,6 @@ kbd, .kbd-hint { font: 500 10.5px/1 var(--f-mono); color: var(--graphite); backg
 .rail-nav .wordmark:hover { color: #fff; }
 /* On the rail the mark inverts: a paper shield with ink brackets, so it reads against the dark ground. */
 .rail-nav .mark-shield { fill: var(--on-rail); }
-.rail-nav .mark-brackets { stroke: var(--rail); }
-.rail-nav .mark-dot { fill: var(--jade); }
 .drawer-close, .drawer-toggle { all: unset; box-sizing: border-box; display: none; align-items: center; justify-content: center; cursor: pointer; }
 .drawer-close { width: 32px; height: 32px; border-radius: var(--r); color: var(--on-rail-2); }
 .drawer-close:hover { color: #fff; background: var(--rail-3); }
