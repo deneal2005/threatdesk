@@ -113,29 +113,56 @@
     });
   }
 
-  /* Disclosure popovers (menus, filter panel): close on outside click and on Escape -------------- */
+  /* Disclosure popovers (menus, filter panel): close on outside click, on Escape and when focus leaves */
   function initPopovers() {
     var selector = 'details.menu[open], details.filter-toggle[open]';
-    document.addEventListener('click', function (e) {
+    function closeAll(except) {
       document.querySelectorAll(selector).forEach(function (d) {
-        // The findings filter panel starts open when filters are active; leave it alone unless the user opened it
-        if (d.classList.contains('filter-toggle') && !d.hasAttribute('data-user-opened')) return;
-        if (!d.contains(e.target)) d.removeAttribute('open');
+        if (d !== except && !d.contains(except)) d.removeAttribute('open');
       });
-    });
-    document.addEventListener('toggle', function (e) {
-      var d = e.target;
-      if (d.matches && d.matches('details.filter-toggle') && d.open) d.setAttribute('data-user-opened', '');
-    }, true);
+    }
+    // pointerdown (not click) so a drag that starts outside, or a click on a row link, still closes the panel first
+    document.addEventListener('pointerdown', function (e) { closeAll(e.target); });
+    document.addEventListener('click', function (e) { closeAll(e.target); });   // keyboard-activated clicks
     document.addEventListener('keydown', function (e) {
       if (e.key !== 'Escape') return;
       document.querySelectorAll(selector).forEach(function (d) {
-        if (d.contains(document.activeElement) || d.classList.contains('menu')) {
-          d.removeAttribute('open');
-          var s = d.querySelector('summary');
-          if (s && d.contains(document.activeElement)) s.focus();
-        }
+        var hadFocus = d.contains(document.activeElement);
+        d.removeAttribute('open');
+        var s = d.querySelector('summary');
+        if (s && hadFocus) s.focus();
       });
+    });
+    // Tabbing past the end of an open panel closes it (relatedTarget is null for clicks on plain text: ignore those)
+    document.addEventListener('focusout', function (e) {
+      var d = e.target.closest && e.target.closest('details.menu[open], details.filter-toggle[open]');
+      if (d && e.relatedTarget && !d.contains(e.relatedTarget)) d.removeAttribute('open');
+    });
+  }
+
+  /* Findings filter panel: choosing a value applies it straight away and closes the panel ------- */
+  function initFilterPanel() {
+    var details = document.querySelector('details.filter-toggle');
+    var form = details && details.querySelector('form.filter-panel');
+    if (!form) return;
+    // Arrow keys on a closed <select> change its value one step at a time: only auto-apply pointer choices,
+    // keyboard users confirm with the Apply button as before
+    var viaKeyboard = false;
+    form.addEventListener('keydown', function (e) { if (e.key !== 'Tab') viaKeyboard = true; });
+    form.addEventListener('pointerdown', function () { viaKeyboard = false; });
+    form.addEventListener('change', function (e) {
+      if (viaKeyboard || !e.target.matches('select, input[type="checkbox"]')) return;
+      if (form.requestSubmit) form.requestSubmit(); else form.submit();
+    });
+    form.addEventListener('submit', function () {
+      details.removeAttribute('open');
+      var summary = details.querySelector('summary');
+      if (summary) { summary.classList.add('is-busy'); summary.setAttribute('aria-busy', 'true'); }
+    });
+    // Back/forward cache restores the page as it was left: clear the busy state
+    window.addEventListener('pageshow', function () {
+      var summary = details.querySelector('summary');
+      if (summary) { summary.classList.remove('is-busy'); summary.removeAttribute('aria-busy'); }
     });
   }
 
@@ -335,6 +362,7 @@
     initDrawer();
     initShortcuts();
     initPopovers();
+    initFilterPanel();
     initForms();
     initTables();
     initFlashes();
