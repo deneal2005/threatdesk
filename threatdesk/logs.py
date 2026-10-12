@@ -5,7 +5,12 @@ import json
 import logging
 import sys
 from contextvars import ContextVar
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = timezone.utc
 
 request_id: ContextVar[str] = ContextVar("request_id", default="")
 job_id_var: ContextVar[str] = ContextVar("job_id", default="")

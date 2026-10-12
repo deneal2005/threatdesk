@@ -5,7 +5,12 @@ import asyncio
 import os
 import ssl
 import tempfile
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = timezone.utc
 
 from threatdesk.checks.base import Ctx, EvidenceItem
 from threatdesk.db import utcnow

@@ -2,7 +2,12 @@
 from __future__ import annotations
 
 import re
-from datetime import UTC, date, datetime
+from datetime import date, datetime, timezone
+
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = timezone.utc
 
 from rapidfuzz import fuzz
 
