@@ -4,6 +4,7 @@ from __future__ import annotations
 import secrets
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
+from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -17,6 +18,12 @@ from threatdesk.web.deps import client_ip, csrf_protect
 from threatdesk.web.templating import render
 
 router = APIRouter()
+
+
+@router.get("/intake")
+def intake_index_redirect():
+    return RedirectResponse("/brands", status_code=303)
+
 
 
 def _brand(db: Session, token: str) -> Brand:
