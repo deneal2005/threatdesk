@@ -1,4 +1,4 @@
-name: threatdesk
+name: base
 channels:
   - conda-forge
   - defaults
