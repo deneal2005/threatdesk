@@ -105,7 +105,7 @@ def test_cron_get_with_bearer_drains_queue_on_serverless(monkeypatch):
     assert c.get("/cron/tick", headers={"Authorization": "Bearer wrong"}).status_code == 401
     r = c.get("/cron/tick", headers={"Authorization": "Bearer s3cret"})
     assert r.status_code == 200
-    assert r.json() == {"enqueued_scans": 0, "brand_ids": [], "jobs_run": 1, "stale_reset": 0}
+    assert r.json() == {"enqueued_scans": 0, "brand_ids": [], "purged_jobs": 0, "jobs_run": 1, "stale_reset": 0}
     assert calls == [jid]
 
 

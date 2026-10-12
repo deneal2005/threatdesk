@@ -25,7 +25,7 @@ def test_tick_enqueues_due_brands_once():
     fresh = make_brand(oid, "Fresh", interval=24)
     with db.session_scope() as s:
         s.get(Brand, fresh).last_scan_at = utcnow() - timedelta(hours=1)
-    assert monitoring.tick() == {"enqueued_scans": 1, "brand_ids": [due]}
+    assert monitoring.tick() == {"enqueued_scans": 1, "brand_ids": [due], "purged_jobs": 0}
     assert monitoring.tick()["enqueued_scans"] == 0                  # already scanned / pending
     with db.session_scope() as s:
         assert len(s.scalars(select(Job).where(Job.type == "scan")).all()) == 1
@@ -37,7 +37,7 @@ def test_cron_endpoint_secret():
     config.override(cron_secret="s3cret")
     assert c.post("/cron/tick", headers={"X-Cron-Secret": "wrong"}).status_code == 401
     r = c.post("/cron/tick", headers={"X-Cron-Secret": "s3cret"})
-    assert r.status_code == 200 and r.json() == {"enqueued_scans": 0, "brand_ids": []}
+    assert r.status_code == 200 and r.json() == {"enqueued_scans": 0, "brand_ids": [], "purged_jobs": 0}
 
 
 def _finding(oid: int, severity: str, source: str = "discovery:domains") -> Finding:
@@ -83,3 +83,19 @@ def test_alert_settings_validated_masked_and_admin_only():
     tok = csrf(c, "/login")
     c.post("/login", data={"email": "ana@example.com", "password": "teammate pass 1", "csrf_token": tok})
     assert post(c, "/settings/alerts", {"email": "x@example.com"}).status_code == 403
+
+
+def test_old_background_jobs_are_purged_but_history_is_kept():
+    from threatdesk import jobs
+    old = utcnow() - timedelta(days=45)
+    with db.session_scope() as s:
+        rows = [Job(type="investigate", payload={"source": "discovery:domains"}, status="done", finished=old),
+                Job(type="investigate", payload={"source": "discovery:ios"}, status="done", finished=utcnow()),
+                Job(type="investigate", payload={"source": "investigate"}, status="done", finished=old),
+                Job(type="scan", payload={"brand_id": 1}, status="done", finished=old)]
+        s.add_all(rows)
+        s.flush()
+        assert jobs.purge_background(s, 30) == 1
+        assert jobs.purge_background(s, 0) == 0                       # 0 keeps everything
+        left = {(j.type, j.payload["source"] if "source" in j.payload else "") for j in s.scalars(select(Job))}
+    assert left == {("investigate", "discovery:ios"), ("investigate", "investigate"), ("scan", "")}

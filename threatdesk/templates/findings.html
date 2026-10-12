@@ -2,7 +2,7 @@
 {% import "macros.html" as m with context %}
 {% block title %}Findings · ThreatDesk{% endblock %}
 {% block content %}
-{% set keep %}{% if brand_id %}&amp;brand_id={{ brand_id }}{% endif %}{% if severity %}&amp;severity={{ severity }}{% endif %}{% if source %}&amp;source={{ source|urlencode }}{% endif %}{% if since %}&amp;since=1{% endif %}{% if reported %}&amp;reported=1{% endif %}{% endset %}
+{% set keep %}{% if brand_id %}&amp;brand_id={{ brand_id }}{% endif %}{% if severity %}&amp;severity={{ severity }}{% endif %}{% if source %}&amp;source={{ source|urlencode }}{% endif %}{% if since %}&amp;since=1{% endif %}{% if reported %}&amp;reported=1{% endif %}{% if tier_f %}&amp;tier={{ tier_f }}{% endif %}{% endset %}
 <header class="page-head">
   <div class="titles">
     <span class="eyebrow">Findings</span>
@@ -29,6 +29,8 @@
         <select id="f-sev" name="severity"><option value="">Any severity</option>{% for s in ("High", "Medium", "Low") %}<option {% if severity == s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></div>
       <div class="field"><label for="f-status">Status</label>
         <select id="f-status" name="status"><option value="">Any in this view</option>{% for s in statuses %}<option value="{{ s }}" {% if status_f == s %}selected{% endif %}>{{ s|status }}</option>{% endfor %}</select></div>
+      <div class="field"><label for="f-tier">Classification</label>
+        <select id="f-tier" name="tier"><option value="">Any classification</option>{% for key, t in tier_info.items() %}<option value="{{ key }}" {% if tier_f == key %}selected{% endif %}>{{ t[0] }}</option>{% endfor %}</select></div>
       <div class="field"><label for="f-source">Found by</label>
         <select id="f-source" name="source"><option value="">Any source</option>{% for s in sources %}<option value="{{ s }}" {% if source == s %}selected{% endif %}>{{ s|source }}</option>{% endfor %}</select></div>
       <label class="check"><input type="checkbox" name="since" value="1" {% if since %}checked{% endif %}> New since my last visit{% if last_visit %} ({{ last_visit|ago }}){% endif %}</label>
@@ -51,7 +53,8 @@
           <td class="tight"><input class="rowcheck" type="checkbox" name="ids" value="{{ f.id }}" aria-label="Select {{ f.display_name|dfg }}"></td>
           <td class="tight">{{ m.score(f) }}</td>
           <td><a class="cell-main defanged" href="/findings/{{ f.id }}">{{ f.display_name|dfg }}</a>
-            <span class="cell-sub">{{ f.kind|kind }} · {{ f.verdict }} · {{ f.source|source }}{% if f.is_user_submitted %} <span class="tagline user">reported</span>{% endif %}</span></td>
+            {% set t = tier_info[tiers[f.id]] %}
+            <span class="cell-sub"><span class="tier sm tier-{{ t[2] }}" title="{{ t[1] }}">{{ t[0] }}</span> {{ f.kind|kind }} · {{ f.verdict }} · {{ f.source|source }}{% if f.is_user_submitted %} <span class="tagline user">reported</span>{% endif %}</span></td>
           <td class="hide-sm">{{ m.status(f.status) }}</td>
           <td class="hide-sm">{{ names.get(f.brand_id, "-") }}</td>
           <td class="tight faint hide-sm" title="{{ f.last_seen|dt }}">{{ f.last_seen|ago }}</td>

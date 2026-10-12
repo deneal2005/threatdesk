@@ -16,7 +16,7 @@ from threatdesk.config import Settings
 from threatdesk.investigator import Report, exclusion
 from threatdesk.linkdetect import detect
 from threatdesk.safety import InvalidInput
-from threatdesk.scoring import Scorecard, severity, verdict
+from threatdesk.scoring import Scorecard, assess, severity, verdict
 
 SITES = ["instagram.com", "facebook.com", "x.com"]
 PREFIX = "FROM SEARCH RESULTS: "
@@ -83,7 +83,7 @@ def hit_to_report(hit: Hit, brand: BrandContext, provider: str) -> Report | None
     det = social_signals(card, brand, link.platform, link.ident, hit.title, hit.snippet, prefix=PREFIX)
     if not card.signals:
         return None
-    score = card.score
+    score = assess(card.signals, "social_profile").score
     detail = {"provider": provider, "title": hit.title[:200], "snippet": hit.snippet[:500], **det}
     return Report(url=link.url, kind="social_profile",
                   link={"kind": link.kind, "host": link.host, "ident": link.ident, "platform": link.platform},

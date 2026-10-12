@@ -96,7 +96,8 @@ async def check_apify_profile(ctx: Ctx):
     prof = normalise(platform, item)
     det = social_signals(ctx.card, ctx.brand, platform, prof["handle"] or handle, prof["name"] or "",
                          prof["bio"] or "", prof["created"],
-                         prof["followers"] if isinstance(prof["followers"], int) else None)
+                         prof["followers"] if isinstance(prof["followers"], int) else None,
+                         verified=bool(prof.get("verified")), links=prof["links"])
     if platform == "instagram" and prof.get("joined_recently") and not prof["created"] and \
             ("similar_to" in det or det.get("name_similar")):
         ctx.card.add("account_lt_90d", "Instagram shows 'joined recently' on a profile that resembles the brand")

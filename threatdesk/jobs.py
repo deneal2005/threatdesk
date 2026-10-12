@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
 from threatdesk.db import utcnow
@@ -81,3 +81,17 @@ def has_pending(db: Session, type_: str, org_id: int, key: str, value) -> bool:
     rows = db.scalars(select(Job).where(Job.type == type_, Job.org_id == org_id,
                                         Job.status.in_(["queued", "running"]))).all()
     return any((j.payload or {}).get(key) == value for j in rows)
+
+
+def purge_background(db: Session, days: int, batch: int = 2000) -> int:
+    """Delete finished scan-lead investigations older than `days` (their findings and evidence stay). Scans,
+    manual investigations and anything a person queued are kept: they are the visible history."""
+    if days <= 0:
+        return 0
+    cutoff = utcnow() - timedelta(days=days)
+    old = db.scalars(select(Job).where(Job.type == "investigate", Job.status.in_(["done", "failed"]),
+                                       Job.created_by.is_(None), Job.finished < cutoff).limit(batch)).all()
+    ids = [j.id for j in old if str((j.payload or {}).get("source", "")).startswith("discovery:")]
+    if ids:
+        db.execute(delete(Job).where(Job.id.in_(ids)))
+    return len(ids)

@@ -16,5 +16,3 @@ google-play-scraper>=1.2.7
 networkx>=3.3
 pyyaml>=6.0
 sentry-sdk[fastapi]>=2.0
-pytest>=8.0
-pytest-asyncio>=0.23

@@ -16,7 +16,9 @@ from threatdesk.db import utcnow
 PHISH_IP = "93.184.216.34"
 HOSTS = {"acmebank-kyc.xyz": PHISH_IP, "acmebank.com": "93.184.216.35", "old-bakery.com": "93.184.216.36",
          "rdap.org": "93.184.216.40", "t.me": "93.184.216.41", "telegram.me": "93.184.216.42",
-         "acme-support-help.online": "93.184.216.37", "acmebank-rewards.xyz": "93.184.216.38"}
+         "acme-support-help.online": "93.184.216.37", "acmebank-rewards.xyz": "93.184.216.38",
+         # a defensive registration: HTTPS refused, plain HTTP redirects to the official site (like amazonlogin.com)
+         "acmebanklogin.com": "93.184.216.43", "www.acmebank.com": "93.184.216.35"}
 
 PHISH_HTML = """<!doctype html><html><head><title>Acme Bank KYC Update</title>
 <meta name="description" content="Official Acme Bank customer care"></head><body>
@@ -45,6 +47,9 @@ REWARDS_HTML = """<!doctype html><html><head><title>Claim your reward | Acme Ban
 </body></html>"""
 
 
+NAMESERVERS: dict[str, list[str]] = {}       # tests set {domain: [ns hosts]} for the ownership check
+
+
 def _rdap_domain(name: str, days_old: int) -> dict:
     reg = (utcnow() - timedelta(days=days_old)).strftime("%Y-%m-%dT%H:%M:%SZ")
     return {"objectClassName": "domain", "ldhName": name.upper(),
@@ -58,6 +63,14 @@ def _rdap_domain(name: str, days_old: int) -> dict:
                               ["tel", {}, "uri", "tel:+1.5555550100"]]]}]},
                          {"roles": ["registrant"], "vcardArray": ["vcard", [["fn", {}, "text", "REDACTED FOR PRIVACY"]]]}],
             "nameservers": [{"ldhName": "NS1.CHEAPNAMES.EXAMPLE"}]}
+
+
+def _rdap_defensive(name: str) -> dict:
+    """Registered 19 years ago through a corporate brand-protection registrar, registrant redacted."""
+    data = _rdap_domain(name, 7000)
+    data["entities"][0]["vcardArray"] = ["vcard", [["version", {}, "text", "4.0"], ["fn", {}, "text", "MarkMonitor Inc."]]]
+    data["nameservers"] = [{"ldhName": "NS1.MARKMONITOR.COM"}, {"ldhName": "NS3.MARKMONITOR.COM"}]
+    return data
 
 
 def handler(request: httpx.Request) -> httpx.Response:
@@ -75,6 +88,8 @@ def handler(request: httpx.Request) -> httpx.Response:
             return httpx.Response(200, json=_rdap_domain("acmebank.com", 5000))
         if path == "/domain/acme-support-help.online":
             return httpx.Response(200, json=_rdap_domain("acme-support-help.online", 12))
+        if path == "/domain/acmebanklogin.com":
+            return httpx.Response(200, json=_rdap_defensive("acmebanklogin.com"))
         if path == "/domain/acmebank-rewards.xyz":
             return httpx.Response(200, json=_rdap_domain("acmebank-rewards.xyz", 40))
         if path.startswith("/ip/"):
@@ -99,6 +114,12 @@ def handler(request: httpx.Request) -> httpx.Response:
     if host == "checkurl.phishtank.com":
         return httpx.Response(200, json={"results": {"in_database": False}})
     if host in HOSTS:
+        if vhost == "acmebanklogin.com":
+            if request.url.scheme == "https":
+                raise httpx.ConnectError("connection refused on port 443")
+            return httpx.Response(301, headers={"location": "https://www.acmebank.com/"})
+        if vhost == "www.acmebank.com":
+            return httpx.Response(200, html="<html><head><title>Acme Bank</title></head><body>Welcome</body></html>")
         if vhost == "acmebank-kyc.xyz":
             return httpx.Response(200, html=PHISH_HTML)
         if vhost == "old-bakery.com":
@@ -120,7 +141,7 @@ def client() -> httpx.AsyncClient:
 def offline_patches():
     """Patch DNS, TLS and ASN so investigations run fully offline against `handler` (also used by the demo seed)."""
     from threatdesk import safety
-    from threatdesk.checks import domain, rdap, tls
+    from threatdesk.checks import domain, ownership, rdap, tls
 
     async def resolve_host(h, port):
         if h in HOSTS:
@@ -136,8 +157,11 @@ def offline_patches():
     async def no_asn(ip):
         return {}
 
+    async def ns_of(domain_name):
+        return NAMESERVERS.get(domain_name, [])
+
     patches = [(safety, "resolve_host", resolve_host), (domain, "resolve_a", resolve_a), (tls, "_handshake", no_tls),
-               (rdap, "_asn", no_asn)]
+               (rdap, "_asn", no_asn), (ownership, "nameservers", ns_of)]
     saved = [(mod, name, getattr(mod, name)) for mod, name, _ in patches]
     for mod, name, fn in patches:
         setattr(mod, name, fn)

@@ -156,25 +156,26 @@ def domain_name_signals(card: Scorecard, host: str, brand: BrandContext) -> dict
     else:
         reg = registrable_domain(host)
         label = reg.split(".")[0]
+        flat = host.replace("-", "").replace(".", "")
+        has_brand = next((t for t in brand.terms() if len(t.replace(" ", "")) >= 4 and t.replace(" ", "") in flat), None)
         for off in brand.official_domains:
             oreg = registrable_domain(off)
             olabel = oreg.split(".")[0]
             if reg == oreg:
                 continue
             ratio = fuzz.ratio(label, olabel)
+            if has_brand and olabel in label:      # same fact as "contains the brand name": count it once
+                out["lookalike_of"] = oreg
+                break
             contains = len(olabel) >= 3 and olabel in label and label != olabel
             if ratio >= 80 or contains:
                 why = f"similarity {int(ratio)}%" if ratio >= 80 else f"contains the official label '{olabel}'"
                 card.add("domain_lookalike", f"{reg} resembles official {oreg} ({why})")
                 out["lookalike_of"] = oreg
                 break
-        flat = host.replace("-", "").replace(".", "")
-        for term in brand.terms():
-            tt = term.replace(" ", "")
-            if len(tt) >= 4 and tt in flat:
-                card.add("domain_has_brand", f"{host} contains the brand name")
-                out["has_brand"] = term
-                break
+        if has_brand:
+            card.add("domain_has_brand", f"{host} contains the brand name")
+            out["has_brand"] = has_brand
         hg = homograph(host, brand.official_domains, brand.terms())
         if hg["is_idn"]:
             out["homograph"] = hg

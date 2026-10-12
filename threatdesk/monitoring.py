@@ -43,9 +43,12 @@ def tick() -> dict:
             jobs.enqueue(db, "scan", {"brand_id": b.id, "scheduled": True}, b.org_id, max_attempts=3)
             b.last_scan_at = utcnow()
             ids.append(b.id)
+        purged = jobs.purge_background(db, get_settings().job_retention_days)
     if ids:
         log.info("scheduled scans", extra=kv(count=len(ids)))
-    return {"enqueued_scans": len(ids), "brand_ids": ids}
+    if purged:
+        log.info("purged old background jobs", extra=kv(count=purged))
+    return {"enqueued_scans": len(ids), "brand_ids": ids, "purged_jobs": purged}
 
 
 def _link(f: Finding) -> str:

@@ -11,10 +11,11 @@ from sqlalchemy.orm import Session
 
 from threatdesk.metrics import OPEN
 from threatdesk.models import Campaign, CampaignFinding, CaseEvent, Finding
+from threatdesk.riskview import TIERS
 from threatdesk.safety import defang, defang_text
 
 CSV_FIELDS = ["id", "brand_id", "kind", "display_name", "url_defanged", "score", "severity", "verdict", "status",
-              "source", "user_submitted", "first_seen", "last_seen"]
+              "source", "user_submitted", "first_seen", "last_seen", "classification"]
 
 
 def _first_event_times(db: Session, org_id: int, fids: list[int], to: str) -> dict[int, object]:
@@ -63,7 +64,7 @@ def _cell(v) -> str:
     return "'" + s if s[:1] in ("=", "+", "-", "@", "\t", "\r") else s
 
 
-def findings_csv(rows: list[Finding]) -> str:
+def findings_csv(rows: list[Finding], tiers: dict[int, str] | None = None) -> str:
     buf = io.StringIO()
     w = csv.writer(buf)
     w.writerow(CSV_FIELDS)
@@ -71,5 +72,6 @@ def findings_csv(rows: list[Finding]) -> str:
         w.writerow([_cell(v) for v in (
             f.id, f.brand_id or "", f.kind, defang_text(f.display_name), defang(f.url), f.score, f.severity,
             f.verdict, f.status, f.source, "yes" if f.is_user_submitted else "no",
-            f.first_seen.isoformat(timespec="seconds"), f.last_seen.isoformat(timespec="seconds"))])
+            f.first_seen.isoformat(timespec="seconds"), f.last_seen.isoformat(timespec="seconds"),
+            TIERS[tiers[f.id]][0] if tiers and f.id in tiers else "")])
     return buf.getvalue()

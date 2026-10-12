@@ -10,9 +10,9 @@ from threatdesk.db import session_scope
 from threatdesk.investigator import investigate
 from threatdesk.models import AssetWhitelist, Brand, ReportIntake
 from threatdesk.persistence import save_report
-from threatdesk.scoring import VERDICT_INSUFFICIENT
+from threatdesk.scoring import OWNERSHIP, VERDICT_EXCLUDED, VERDICT_INSUFFICIENT, ownership_evidence
 
-NETWORK_FAILURES = ("network error", "DNS lookup timed out", "DNS servers failed")
+NETWORK_FAILURES = ("network error", "DNS lookup timed out", "DNS servers failed", "timed out after")
 
 
 class NetworkUnavailable(RuntimeError):
@@ -55,6 +55,20 @@ def _save(org_id: int, brand_id: int | None, report, source: str, in_triage: boo
         return {"finding_id": f.id, "created": created, "verdict": f.verdict, "score": f.score}
 
 
+def _close_existing(org_id: int, brand_id: int | None, report) -> bool:
+    """A scan lead that is now official: don't create a finding, but close one opened before it was listed."""
+    from threatdesk.persistence import find_existing
+    from threatdesk.reconcile import close_as_official
+    with session_scope() as db:
+        f = find_existing(db, org_id, brand_id, report.dedupe_key)
+        if f is None:
+            return False
+        official = report.verdict == VERDICT_EXCLUDED
+        if not official:                      # likely brand-owned: keep the new evidence and its lower score
+            f, _ = save_report(db, org_id, brand_id, report, f.source, in_triage=f.in_triage)
+        return close_as_official(db, f, report.excluded_reason, excluded=official)
+
+
 async def handle_investigate(jid: int, payload: dict, org_id: int | None) -> dict:
     brand_id = payload.get("brand_id")
     brand = await asyncio.to_thread(load_brand_ctx, org_id, brand_id)
@@ -62,8 +76,12 @@ async def handle_investigate(jid: int, payload: dict, org_id: int | None) -> dic
     if network_outage(report):
         raise NetworkUnavailable("most checks failed with network errors; retrying later")
     source = payload.get("source", "investigate")
+    if source.startswith("discovery:") and not report.excluded_reason and             ownership_evidence({s["code"] for s in report.signals}, strong_only=True):
+        report.excluded_reason = "likely brand-owned: " + "; ".join(
+            s["evidence"] for s in report.signals if s["code"] in OWNERSHIP)[:400]
     if report.excluded_reason and source.startswith("discovery:"):
-        return {"skipped": report.excluded_reason, "verdict": report.verdict}
+        closed = await asyncio.to_thread(_close_existing, org_id, brand_id if brand.id else None, report)
+        return {"skipped": report.excluded_reason, "verdict": report.verdict, "closed_existing": closed}
     return await asyncio.to_thread(_save, org_id, brand_id if brand.id else None, report, source,
                                    bool(payload.get("in_triage", source != "investigate")),
                                    bool(payload.get("user_submitted")), payload.get("intake_id"))

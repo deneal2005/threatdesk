@@ -4,6 +4,8 @@ from __future__ import annotations
 import hashlib
 from urllib.parse import urlsplit
 
+import httpx
+
 from threatdesk.checks.base import Ctx, EvidenceItem
 from threatdesk.checks.domain import registrable_domain
 from threatdesk.checks.generic import known_official
@@ -44,10 +46,20 @@ def _same_owner(a: str, b: str) -> bool:
 async def check_page(ctx: Ctx):
     if (ctx.facts.get("dns") or {}).get("state") == "nxdomain":
         return ctx.not_possible("page_fetch", "domain does not exist (NXDOMAIN)")
+    fallback = None
     try:
         page = await fetch_and_parse(ctx, ctx.link.url)
     except UnsafeURL as e:
         return ctx.not_possible("page_fetch", f"refused by SSRF guard: {e}")
+    except (httpx.HTTPError, OSError) as e:
+        # Parked and defensive domains often answer only on plain HTTP (and redirect from there to the real site).
+        if not ctx.link.url.startswith("https://"):
+            raise
+        try:
+            page = await fetch_and_parse(ctx, "http://" + ctx.link.url[len("https://"):])
+        except UnsafeURL as e2:
+            return ctx.not_possible("page_fetch", f"refused by SSRF guard: {e2}")
+        fallback = f"HTTPS failed ({type(e).__name__}); fetched over plain HTTP"
     ctx.facts["page"] = page
     ind = page["indicators"]
     for t in ("phone", "upi", "email"):
@@ -71,4 +83,4 @@ async def check_page(ctx: Ctx):
     return ctx.ran("page_fetch", status=page["status"], title=page["title"], host=host, final_host=final_host,
                    final_url=page["final_url"], redirects=max(0, len(page["redirect_chain"]) - 1),
                    bytes=page["bytes"], truncated=page["truncated"], tls_verified=page["tls_verified"],
-                   forms=len(page["forms"]), sensitive_inputs=page["sensitive_inputs"])
+                   forms=len(page["forms"]), sensitive_inputs=page["sensitive_inputs"], fallback=fallback)

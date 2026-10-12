@@ -275,3 +275,17 @@ SCAM_LIST_SOURCES = [
 # List entries that are popular sites are list mistakes (bit.ly, surveymonkey.com, rei.com were all listed).
 TRANCO_URL = "https://tranco-list.eu/top-1m.csv.zip"
 TRANCO_SANITISE_TOP = 100_000
+
+# ------------------------------------------------------------------ ownership evidence (checks/ownership.py)
+# Corporate brand-protection registrars: enterprise contracts only, used by brands for defensive registrations.
+BRAND_PROTECTION_REGISTRARS = ["markmonitor", "csc corporate domains", "corporation service company", "cscdbs",
+                               "com laude", "nom-iq", "safenames", "lexsynergy", "brandsight", "nameshield", "ascio"]
+BRAND_PROTECTION_NS = ["markmonitor.com", "comlaude", "cscdns.", "safenames.net", "nameshield.net", "lexsynergy"]
+# DNS hosts shared by millions of unrelated domains: a common nameserver there says nothing about ownership.
+# Exact registrable domains of the nameserver host, then substrings for numbered pools (ns-12.awsdns-01.org).
+SHARED_DNS_HOSTS = ["cloudflare.com", "domaincontrol.com", "registrar-servers.com", "googledomains.com", "google.com",
+                    "nsone.net", "dnsmadeeasy.com", "dns.com", "name-services.com", "dynect.net", "akam.net",
+                    "wixdns.net", "digitalocean.com", "linode.com", "vercel-dns.com", "porkbun.com", "bluehost.com",
+                    "hostgator.com", "dreamhost.com", "ovh.net", "gandi.net", "he.net", "afraid.org", "parkingcrew.net",
+                    "sedoparking.com", "bodis.com", "above.com", "dan.com", "afternic.com", "namecheaphosting.com"]
+SHARED_DNS_PATTERNS = ["awsdns", "azure-dns", "ultradns", "squarespacedns", "netlify", "hostinger"]

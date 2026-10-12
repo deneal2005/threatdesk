@@ -12,6 +12,7 @@ from threatdesk.assets import checking, forms, store
 from threatdesk.assets.platforms import PLATFORMS
 from threatdesk.db import get_db
 from threatdesk.models import Brand, User
+from threatdesk.reconcile import reconcile_brand
 from threatdesk.safety import InvalidInput
 from threatdesk.tenancy import get_owned
 from threatdesk.web.brandpage import METHODS, brand_page
@@ -80,6 +81,8 @@ async def add_asset(brand_id: int, segment: str, request: Request, user: User = 
     for row in created:
         if checking_useful(db, brand, kind, row):
             checking.enqueue_check(db, brand, kind, row, user.id, paid=False)
+    if created:
+        reconcile_brand(db, brand)
     db.commit()
     first = results[0][0]
     return _back(brand, kind, "asset_added" if created else "asset_exists", added=first.id, add=1,
@@ -135,6 +138,7 @@ async def update_asset(brand_id: int, segment: str, asset_id: int, request: Requ
     conflict = "Someone else changed this while you were editing. Here is the latest version; make your change again."
     try:
         store.update(db, brand, kind, row, _edit_data(kind, row, form), version)
+        reconcile_brand(db, brand)
         db.commit()
     except InvalidInput as e:
         db.rollback()
