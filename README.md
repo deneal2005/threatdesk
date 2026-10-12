@@ -38,6 +38,33 @@ This creates "Demo Org" with the brand "Acme Bank" (2 websites, 5 accounts, 2 ap
 investigations from the offline test fixtures, plus one confirmed case and a campaign. Every seeded finding shows the
 source **Demo fixture** so it is never mistaken for a live result. It does nothing if Demo Org already exists.
 
+## Deploy on Vercel + Supabase
+
+The repo deploys as-is with Vercel's FastAPI support (`app.py` is the entrypoint, `vercel.json` adds a daily cron).
+
+1. **Database**: create a Supabase project. Either add the Supabase integration to the Vercel project (it sets
+   `POSTGRES_URL`, which ThreatDesk reads when `DATABASE_URL` is unset) or set `DATABASE_URL` to the
+   **transaction pooler** string (port 6543). Tables are created on first start; `schema.sql` is the same schema
+   if you prefer to run it in the SQL editor first.
+2. **Vercel project**: import this GitHub repository (framework preset: FastAPI, no build settings needed).
+3. **Environment variables**: `SECRET_KEY` (long random string, required), `CRON_SECRET` (random string),
+   `PUBLIC_BASE_URL` (e.g. `https://threatdesk.vercel.app`), optional `SENTRY_DSN` and any API keys from the table
+   below.
+4. Deploy, open the URL, sign up.
+
+How it differs from a single long-running process (detected automatically on Vercel, or force with `SERVERLESS=true`):
+
+* No resident worker. A queued job runs inside the next signed-in status poll (the Investigate page and asset
+  lists poll every 2-3 s) or authenticated `GET /api/v1/jobs/{id}`, one job per poll. `/cron/tick` runs the
+  scheduler and then drains the queue for up to 270 s.
+* Vercel Cron calls `GET /cron/tick` with `Authorization: Bearer $CRON_SECRET` once a day (the Hobby limit). For
+  scheduled scans more often, use a Pro cron schedule, or set the repository secrets `THREATDESK_URL` and
+  `CRON_SECRET` to enable `.github/workflows/cron-tick.yml` (every 10 minutes).
+* Jobs stuck in `running` for longer than `JOB_TIMEOUT` + 60 s (their function instance stopped) are requeued.
+* Database connections are not pooled in-process (`NullPool`); the Supabase pooler does it.
+* Public scam lists are off by default (`SCAM_LISTS=on` downloads them into `/tmp` per instance, slowly).
+* `ENV` defaults to `prod` (Secure cookies, `SECRET_KEY` required).
+
 ## Tests
 
 ```bash
@@ -59,7 +86,8 @@ turns on one more check; a missing key shows that check as "Not configured", nev
 | `YOUTUBE_API_KEY` | YouTube channel checks, discovery and verification |
 | `BRAVE_API_KEY` or `GOOGLE_CSE_KEY` + `GOOGLE_CSE_CX` | web-search discovery of public profile pages |
 | `APIFY_TOKEN` | Instagram/TikTok/Facebook profile reads (paid per profile, capped at $0.05 a run) |
-| `CRON_SECRET` | `POST /cron/tick` for an external scheduler |
+| `CRON_SECRET` | `POST /cron/tick` (header `X-Cron-Secret`) or `GET` with `Authorization: Bearer` (Vercel Cron) |
+| `SENTRY_DSN` | error reporting to Sentry (no request bodies, cookies or user details; API keys stripped from URLs) |
 | `SMTP_*` | email alerts (webhooks are set per organisation in Settings) |
 
 Keyless checks: DNS, domain-name rules, RDAP (domain + IP), TLS, Wayback, page fetch and content rules, public scam

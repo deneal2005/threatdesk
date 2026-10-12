@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.pool import NullPool, StaticPool
 
 from threatdesk.config import get_settings
 
@@ -30,8 +30,12 @@ def make_engine(url: str) -> Engine:
     if url.startswith("sqlite"):
         return create_engine(url, connect_args={"check_same_thread": False}, poolclass=StaticPool)
     # prepare_threshold=None: required for Supabase's transaction pooler (pgbouncer), harmless elsewhere.
+    connect_args = {"prepare_threshold": None, "connect_timeout": 10}
+    if get_settings().serverless:
+        # Short-lived function instances: let the external pooler (Supabase/Neon) own the connections.
+        return create_engine(url, poolclass=NullPool, connect_args=connect_args)
     return create_engine(url, pool_pre_ping=True, pool_size=5, max_overflow=5, pool_recycle=300,
-                         pool_timeout=10, connect_args={"prepare_threshold": None, "connect_timeout": 10})
+                         pool_timeout=10, connect_args=connect_args)
 
 
 def get_engine() -> Engine:
@@ -53,13 +57,25 @@ def reset_engine(url: str | None = None) -> Engine:
 
 
 def create_all() -> None:
+    global _schema_ready
     import threatdesk.models  # noqa: F401  (registers tables)
     Base.metadata.create_all(get_engine())
+    _schema_ready = True
+
+
+_schema_ready = False
+
+
+def ensure_schema() -> None:
+    """Serverless hosts may skip the lifespan startup on some instances: create tables on first use instead."""
+    if not _schema_ready and get_settings().serverless:
+        create_all()
 
 
 @contextmanager
 def session_scope() -> Iterator[Session]:
     get_engine()
+    ensure_schema()
     s = SessionLocal()
     try:
         yield s
@@ -74,6 +90,7 @@ def session_scope() -> Iterator[Session]:
 def get_db() -> Iterator[Session]:
     """FastAPI dependency."""
     get_engine()
+    ensure_schema()
     s = SessionLocal()
     try:
         yield s

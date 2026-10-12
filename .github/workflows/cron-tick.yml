@@ -1,0 +1,27 @@
+# Drives ThreatDesk's scheduler and job queue on serverless hosts more often than Vercel Hobby's daily cron.
+# Set repository secrets THREATDESK_URL (e.g. https://threatdesk.vercel.app) and CRON_SECRET to enable it;
+# without them every run is a no-op.
+name: cron-tick
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: POST /cron/tick
+        env:
+          THREATDESK_URL: ${{ secrets.THREATDESK_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$THREATDESK_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "THREATDESK_URL / CRON_SECRET secrets not set; skipping."
+            exit 0
+          fi
+          curl -fsS --max-time 300 -X POST -H "X-Cron-Secret: $CRON_SECRET" "${THREATDESK_URL%/}/cron/tick"
