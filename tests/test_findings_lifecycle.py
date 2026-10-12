@@ -89,6 +89,35 @@ def test_report_page_list_api_and_csv_show_the_classification():
     assert c.get("/reports/findings.csv").text.splitlines()[1].endswith(',"Look-alike, unconfirmed"')
 
 
+def test_classification_filter_pages_over_every_match_and_links_keep_filters():
+    c, oid, bid = _setup()
+    suspicious = [{"code": "handle_similar", "points": 25, "evidence": "x"},
+                  {"code": "account_lt_90d", "points": 40, "evidence": "x"}]
+    with db.session_scope() as s:
+        for i in range(2):                 # higher scores, so they fill the first page before any look-alike
+            save_report(s, oid, bid, lookalike_report(
+                url=f"https://www.instagram.com/acmesus{i}/", display_name=f"instagram.com/acmesus{i}",
+                dedupe_key=f"instagram:acmesus{i}", link={"kind": "closed_social", "platform": "instagram",
+                                                          "ident": f"acmesus{i}"},
+                signals=suspicious, score=65, severity="Medium", verdict="Medium risk"), "discovery:websearch")
+        for i in range(3):
+            save_report(s, oid, bid, lookalike_report(
+                url=f"https://www.instagram.com/acmelook{i}/", display_name=f"instagram.com/acmelook{i}",
+                dedupe_key=f"instagram:acmelook{i}", link={"kind": "closed_social", "platform": "instagram",
+                                                           "ident": f"acmelook{i}"}), "discovery:websearch")
+    page = c.get("/findings?tier=lookalike&page_size=1").text
+    assert "acmelook" in page and "acmesus" not in page
+    assert "Showing 1 of 3 matching findings" in page and "Page 1 of 3" in page
+    # A link past the last page lands on the last page instead of an empty "no match" screen
+    assert "Page 3 of 3" in c.get("/findings?tier=lookalike&page_size=1&page=9").text
+
+    # The panel starts closed (results stay visible) and its button counts the active filters
+    assert '<details class="filter-toggle">' in page and 'aria-label="Filter Options, 1 active"' in page
+    # Searching keeps the sort order; paging keeps a status filter
+    assert '<input type="hidden" name="sort" value="newest">' in c.get("/findings?sort=newest").text
+    assert "&amp;status=new" in c.get("/findings?status=new&page_size=1").text
+
+
 def test_adding_an_official_account_closes_its_open_finding():
     c, oid, bid = _setup()
     with db.session_scope() as s:

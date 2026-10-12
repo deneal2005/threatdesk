@@ -87,9 +87,6 @@ def list_findings(request: Request, user: User = Depends(current_user), db: Sess
         sort_by = "score"
 
     q = views[view].where(Finding.status == status) if status else views[view]
-    total_matching = db.scalar(select(func.count()).select_from(q.subquery())) or 0
-    total_pages = max(1, (total_matching + page_size - 1) // page_size)
-
     if sort_by == "newest":
         ordered = q.order_by(Finding.last_seen.desc(), Finding.score.desc())
     elif sort_by == "oldest":
@@ -97,12 +94,26 @@ def list_findings(request: Request, user: User = Depends(current_user), db: Sess
     else:
         ordered = q.order_by(Finding.score.desc(), Finding.last_seen.desc())
 
-    offset = (page - 1) * page_size
-    rows = list(db.scalars(ordered.offset(offset).limit(page_size)))
-    tiers = tiers_for(db, rows)
     tier_f = p.get("tier") if p.get("tier") in TIERS else ""
     if tier_f:
-        rows = [f for f in rows if tiers[f.id] == tier_f]
+        # The classification is derived from signals, not stored, so filter before paging: filtering one page
+        # afterwards left short or empty pages and a "matching" total that ignored the filter
+        candidates = list(db.scalars(ordered))
+        all_tiers = tiers_for(db, candidates)
+        matched = [f for f in candidates if all_tiers[f.id] == tier_f]
+        total_matching = len(matched)
+    else:
+        total_matching = db.scalar(select(func.count()).select_from(q.subquery())) or 0
+    total_pages = max(1, (total_matching + page_size - 1) // page_size)
+    page = min(page, total_pages)            # a stale link past the last page shows the last page, not "nothing found"
+
+    offset = (page - 1) * page_size
+    if tier_f:
+        rows = matched[offset:offset + page_size]
+        tiers = {f.id: all_tiers[f.id] for f in rows}
+    else:
+        rows = list(db.scalars(ordered.offset(offset).limit(page_size)))
+        tiers = tiers_for(db, rows)
     brands = list(db.scalars(scoped(Brand, user.org_id).order_by(Brand.name)))
     sources = sorted(s for (s,) in db.execute(select(Finding.source).where(Finding.org_id == user.org_id,
                                                                             Finding.in_triage.is_(True)).distinct()))

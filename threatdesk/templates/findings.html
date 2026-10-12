@@ -3,6 +3,8 @@
 {% block title %}Findings &amp; Triage · ThreatDesk{% endblock %}
 {% block content %}
 {% set keep %}{% if brand_id %}&amp;brand_id={{ brand_id }}{% endif %}{% if severity %}&amp;severity={{ severity }}{% endif %}{% if source %}&amp;source={{ source|urlencode }}{% endif %}{% if since %}&amp;since={{ since_value }}{% endif %}{% if reported %}&amp;reported=1{% endif %}{% if tier_f %}&amp;tier={{ tier_f }}{% endif %}{% if query_str %}&amp;q={{ query_str|urlencode }}{% endif %}{% if sort_by and sort_by != 'score' %}&amp;sort={{ sort_by }}{% endif %}{% endset %}
+{# The view tabs drop a status filter on purpose; paging must keep it #}
+{% set keep_status %}{% if status_f %}&amp;status={{ status_f }}{% endif %}{% endset %}
 
 <header class="page-head">
   <div class="titles">
@@ -37,6 +39,7 @@
       {% if status_f %}<input type="hidden" name="status" value="{{ status_f }}">{% endif %}
       {% if since %}<input type="hidden" name="since" value="{{ since_value }}">{% endif %}
       {% if reported %}<input type="hidden" name="reported" value="1">{% endif %}
+      {% if sort_by and sort_by != 'score' %}<input type="hidden" name="sort" value="{{ sort_by }}">{% endif %}
       <div class="search-wrap">
         <label for="search-input" class="sr">Search findings</label>
         <input id="search-input" type="search" name="q" value="{{ query_str or '' }}" placeholder="Search domain, name, or URL..." class="search-input">
@@ -44,8 +47,12 @@
       </div>
     </form>
 
-    <details class="filter-toggle" {% if filtered %}open{% endif %}>
-      <summary class="btn quiet sm">Filter Options{% if filtered %} · active{% endif %}</summary>
+    {# Panel filters only; the search box shows its own term. Starts closed so the results stay visible. #}
+    {% set active_filters = [brand_id, severity, status_f, tier_f, source, since, reported]|select|list|length %}
+    <details class="filter-toggle">
+      <summary class="btn quiet sm"{% if active_filters %} aria-label="Filter Options, {{ active_filters }} active"{% endif %}>
+        Filter Options{% if active_filters %} <span class="num" aria-hidden="true">{{ active_filters }}</span>{% endif %}
+      </summary>
       <form class="sheet filter-panel" method="get" action="/findings">
         <input type="hidden" name="view" value="{{ view }}">
         {% if query_str %}<input type="hidden" name="q" value="{{ query_str }}">{% endif %}
@@ -178,11 +185,11 @@
     {% if total_pages > 1 %}
     <div class="pagination-links">
       {% if page > 1 %}
-      <a class="btn quiet sm" href="/findings?view={{ view }}&amp;page={{ page - 1 }}{{ keep }}">← Previous</a>
+      <a class="btn quiet sm" href="/findings?view={{ view }}&amp;page={{ page - 1 }}{{ keep }}{{ keep_status }}">← Previous</a>
       {% endif %}
       <span class="small num bold">Page {{ page }}</span>
       {% if page < total_pages %}
-      <a class="btn quiet sm" href="/findings?view={{ view }}&amp;page={{ page + 1 }}{{ keep }}">Next →</a>
+      <a class="btn quiet sm" href="/findings?view={{ view }}&amp;page={{ page + 1 }}{{ keep }}{{ keep_status }}">Next →</a>
       {% endif %}
     </div>
     {% endif %}
@@ -226,7 +233,7 @@
   <div class="empty">
     <h3>No findings match these filters</h3>
     <p>Clear a filter or search term to see more findings.</p>
-    <a class="btn quiet" href="/findings">Clear filters</a>
+    <a class="btn quiet" href="/findings?view={{ view }}">Clear filters</a>
   </div>
 {% elif view == "all" %}
   <div class="empty">
