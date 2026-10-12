@@ -12,10 +12,7 @@
     <a class="btn ghost" href="/findings?brand_id={{ brand.id }}">Findings</a>
     <a class="btn ghost" href="/reports/brand/{{ brand.id }}">Summary</a>
     <a class="btn quiet" href="/brands/{{ brand.id }}/edit">Brand settings</a>
-    <form method="post" action="/brands/{{ brand.id }}/scan">{{ m.csrf() }}
-      {% if scan_running %}<button class="btn" disabled title="A scan for this brand is queued or running">{{ m.icon("scan") }}Scan running…</button>
-      {% else %}<button class="btn">{{ m.icon("scan") }}Scan now</button>{% endif %}
-    </form>
+    {% include "_scan_button.html" %}
   </div>
 </header>
 <nav class="tabs brand-tabs" aria-label="Brand sections">

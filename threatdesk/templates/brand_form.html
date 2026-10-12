@@ -78,4 +78,11 @@
     <button class="btn">{{ "Save changes" if brand else "Add brand" }}</button>
   </div>
 </form>
+{% if brand and user.role == "admin" %}
+<section class="sheet pad danger-zone section-gap" aria-labelledby="dz-title">
+  <h3 id="dz-title">Delete this brand</h3>
+  <p class="small muted">Removes {{ brand.name }} with its official assets, findings, evidence, customer reports and scan history. Other brands are not affected.</p>
+  <a class="btn danger sm" href="/brands/{{ brand.id }}/delete">Delete brand…</a>
+</section>
+{% endif %}
 {% endblock %}

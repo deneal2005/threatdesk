@@ -11,7 +11,7 @@ BRAND = BrandContext(name="Acme Bank", official_domains=["acmebank.com"], keywor
 
 
 def test_every_rule_has_points_and_description():
-    assert len(RULES) == 60
+    assert len(RULES) == 63
     for code, (points, desc) in RULES.items():
         assert isinstance(points, int) and points != 0 and desc and "safe" not in desc.split()
         assert category(code, points) in CATEGORY_LABELS

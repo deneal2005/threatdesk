@@ -25,7 +25,11 @@ MESSAGES = {
     "welcome_new": "Welcome to ThreatDesk. Start by adding the brand you protect.",
     "still_running": "That investigation is still running. Delete it once it has finished.",
     "loggedout": "You're logged out.",
-    "queued": "Scan started. New findings appear in Findings as each check finishes.",
+    "queued": "Scan started: discovery, lead investigations and checks of your unverified assets run in the "
+              "background. Progress shows below.",
+    "queued_all": "Scans started for every brand. Progress shows below.",
+    "scan_already_running": "A scan for this brand is already running, so no second one was started.",
+    "no_brands": "Add a brand first: scans look for look-alikes of a brand's name and assets.",
     "whitelisted": "Added to the allow list.",
     "status": "Status updated.",
     "commented": "Comment added.",
@@ -46,6 +50,10 @@ MESSAGES = {
     "asset_gone": "That entry was removed in the meantime.",
     "checking": "Checking. The result appears here in a few seconds.",
     "checking_all": "Checking every unverified entry. Results appear here as each check finishes.",
+    "brand_deleted": "Brand deleted, with its assets, findings, reports and scan history.",
+    "all_read": "All alerts marked as read.",
+    "alert_gone": "That alert no longer exists.",
+    "finding_gone": "The finding behind that alert has been deleted.",
     "nothing_to_check": "Nothing to check: every active entry is verified or already being checked.",
 }
 

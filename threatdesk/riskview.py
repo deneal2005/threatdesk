@@ -12,7 +12,7 @@ from sqlalchemy import select
 from threatdesk.models import Signal
 from threatdesk.scoring import (
     CATEGORY_LABELS, MIN_CHECKS, MIN_CHECKS_BY_KIND, VERDICT_EXCLUDED, VERDICT_INSUFFICIENT, Assessment, assess,
-    STRONG_OWNERSHIP, category, hard_evidence, ownership_evidence,
+    AFFILIATION_ABUSE, AFFILIATION_SUPPORT, STRONG_OWNERSHIP, category, hard_evidence, ownership_evidence,
 )
 
 ANALYST_CONFIRMED = ("confirmed", "takedown_requested", "taken_down")
@@ -25,9 +25,19 @@ TIERS = {
                                             "the brand owning it. Engines often flag a brand's own defensive domains "
                                             "by their name: check the listing before acting.", "med"),
     "suspicious": ("Suspicious", "Several independent warning signs. Needs an analyst to confirm.", "med"),
-    "brand_owned": ("Likely brand-owned", "It redirects to an official site or is registered like the brand's own "
-                                          "domains (a defensive registration), and nothing on it looks abusive. If "
-                                          "it is yours, add it to the brand's websites.", "off"),
+    "brand_owned": ("Likely brand-owned", "Evidence ties it to the brand: an official website links to it, it "
+                                          "redirects to an official site, or it is registered like the brand's own "
+                                          "domains (a defensive registration). Nothing on it looks abusive. If it is "
+                                          "yours, add it to the brand's assets.", "off"),
+    "affiliated": ("Likely regional or affiliated account", "Named as the brand plus a region, language or product, "
+                                                            "and other evidence points to the brand (verified badge, "
+                                                            "long history or a link to an official domain). Nothing "
+                                                            "on it looks abusive. Confirm, then add it to the brand's "
+                                                            "accounts.", "off"),
+    "regional_review": ("Regional or product name, unconfirmed", "Named the way brands name their own local or "
+                                                                 "product accounts, but nothing confirms or "
+                                                                 "contradicts it yet. Review before acting: a name "
+                                                                 "alone is not evidence of impersonation.", "low"),
     "lookalike": ("Look-alike, unconfirmed", "Its name resembles the brand, but nothing else points to abuse. "
                                              "Name similarity alone is not evidence.", "low"),
     "none": ("No strong signals", "The checks that ran found little. That is not proof it is genuine.", "low"),
@@ -65,6 +75,8 @@ def classify(status: str, verdict: str, codes: set[str], score: int) -> str:
         return "insufficient"
     if score >= 40:
         return "suspicious"
+    if "regional_variant" in codes and not codes & AFFILIATION_ABUSE:
+        return "affiliated" if codes & AFFILIATION_SUPPORT else "regional_review"
     if any(category(c) == "identity" for c in codes):
         return "lookalike"
     return "none"

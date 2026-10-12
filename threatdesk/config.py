@@ -103,6 +103,8 @@ class Settings:
     phishtank_username: str = "threatdesk"
     apify_token: str | None = None
     apify_instagram_about: bool = False
+    apify_website_trust: bool = False          # paid third-party website trust report (lofomachines actor)
+    apify_trust_daily_limit: int = 20          # at most this many paid trust reports per process per day
     serverless: bool = False
     sentry_dsn: str | None = None
     extra: dict = field(default_factory=dict)
@@ -157,6 +159,8 @@ def load_settings() -> Settings:
         phishtank_app_key=_get("PHISHTANK_APP_KEY"), phishtank_username=_get("PHISHTANK_USERNAME") or "threatdesk",
         apify_token=_get("APIFY_TOKEN"),
         apify_instagram_about=(_get("APIFY_INSTAGRAM_ABOUT") or "").lower() == "true",
+        apify_website_trust=(_get("APIFY_WEBSITE_TRUST") or "").lower() == "true",
+        apify_trust_daily_limit=max(0, _int("APIFY_TRUST_DAILY_LIMIT", 20)),
         serverless=serverless, sentry_dsn=_get("SENTRY_DSN"),
     )
 

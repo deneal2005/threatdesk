@@ -34,7 +34,7 @@
           <td class="tight faint" title="{{ job.created|dt }}">{{ job.created|ago }}</td>
           <td class="tight">
             {% if job.status not in ("queued", "running") %}
-            <form method="post" action="/investigate/jobs/{{ job.id }}/delete">{{ m.csrf() }}<button class="btn ghost sm" aria-label="Delete this investigation">Delete</button></form>
+            <form method="post" action="/investigate/jobs/{{ job.id }}/delete" data-confirm="Delete this investigation and its result? Saved findings are not affected.">{{ m.csrf() }}<button class="btn ghost sm" aria-label="Delete this investigation">Delete</button></form>
             {% endif %}
           </td>
         </tr>

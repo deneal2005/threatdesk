@@ -2,12 +2,34 @@
 {% import "asset_macros.html" as am with context %}
 <div class="split">
   <div>
-    {% if setup %}
-    <section class="sheet setup">
-      <div class="setup-head"><h2>Finish setting up</h2><span class="small muted">{{ 4 - setup|length }} of 4 done</span></div>
-      <ol class="setup-list">
-        {% for title, text, href in setup %}
-        <li><a href="{{ href }}"><strong>{{ title }}</strong><span class="small muted">{{ text }}</span></a></li>
+    {% if not setup.complete %}
+    <section class="sheet setup" aria-labelledby="setup-title">
+      <div class="setup-head">
+        <h2 id="setup-title">Set up {{ brand.name }}</h2>
+        <span class="small muted">{{ setup.done }} of {{ setup.total }} done</span>
+      </div>
+      <p class="small muted setup-intro">Scanning works at any point. Each step makes it more precise: what you list here is never flagged, and it is what look-alikes are compared against.</p>
+      <ol class="setup-steps">
+        {% for st in setup.steps %}
+        <li class="setup-step is-{{ st.state }}">
+          <span class="step-mark" aria-hidden="true">{% if st.state == "done" %}✓{% elif st.state == "skipped" %}–{% else %}{{ loop.index }}{% endif %}</span>
+          <div class="step-body">
+            <strong>{{ st.title }}</strong><span class="sr"> ({{ {"done": "done", "skipped": "skipped", "pending": "in progress", "todo": "to do"}[st.state] }})</span>
+            <span class="cell-sub">{{ st.detail }}</span>
+            {% if st.why and st.state == "todo" %}<span class="small faint">{{ st.why }}</span>{% endif %}
+          </div>
+          <div class="step-actions">
+            {% if st.state == "todo" %}
+              {% if st.post %}<form method="post" action="{{ st.post }}">{{ m.csrf() }}<button class="btn sm">{{ st.label }}</button></form>
+              {% elif st.label %}<a class="btn sm" href="{{ st.href }}">{{ st.label }}</a>{% endif %}
+              {% if st.post and st.href_label %}<a class="small" href="{{ st.href }}">{{ st.href_label }}</a>{% endif %}
+              {% if st.skip %}<form method="post" action="/brands/{{ brand.id }}/setup/{{ st.key }}/skip">{{ m.csrf() }}<button class="linklike small" title="{{ st.skip }}">Not applicable</button></form>{% endif %}
+            {% elif st.state == "skipped" %}
+              <form method="post" action="/brands/{{ brand.id }}/setup/{{ st.key }}/unskip">{{ m.csrf() }}<button class="linklike small">Undo</button></form>
+            {% elif st.state == "pending" %}<span class="badge b-pending">In progress</span>
+            {% else %}<a class="small" href="{{ st.href }}">View</a>{% endif %}
+          </div>
+        </li>
         {% endfor %}
       </ol>
     </section>
@@ -40,37 +62,8 @@
     </section>
 
     <section class="section">
-      <div class="section-head"><h2>Latest scan</h2>{% if scans %}<span class="small muted" title="{{ scans[0].created|dt }}">{{ scans[0].created|ago }}</span>{% endif %}</div>
-      {% if scans %}
-        {% set s = scans[0] %}{% set res = s.result or {} %}
-        <div class="sheet">
-        {% if s.status in ("queued", "running") %}
-          <div class="scanning" aria-live="polite">
-            <strong>{{ "Scanning now" if s.status == "running" else "Waiting for a free worker" }}</strong>
-            <div class="bar"></div>
-            <p class="small muted">Every source runs in parallel. Leads are investigated one by one and appear in Findings.</p>
-          </div>
-        {% elif s.status == "failed" %}
-          <p class="pad-x">The scan stopped: {{ s.error }}</p>
-        {% else %}
-          <ul class="rows">
-            {% for src in res.get("sources", []) %}
-            {% set badge = src.status|scan_source_badge(src.candidates) %}
-            <li><span class="source-state {{ badge.class }}" aria-hidden="true"></span>
-              <span class="grow"><strong>{{ src.name|scan_source }}</strong><span class="cell-sub">{{ badge.summary|dfg }}</span></span>
-              <span class="source-badge {{ badge.class }}" role="status" aria-label="{{ src.name|scan_source }}: {{ badge.label }}"><span class="badge-icon" aria-hidden="true">{{ badge.icon }}</span> <span>{{ badge.label }}</span>{% if badge.class == 'ok' %} <span class="num" title="candidates">({{ src.candidates }})</span>{% endif %}</span></li>
-            {% endfor %}
-          </ul>
-          <p class="pad-x small muted">{{ res.get("enqueued", 0) }} lead{{ "s" if res.get("enqueued", 0) != 1 }} sent for investigation{% if res.get("search_findings_new") %}, {{ res.search_findings_new }} new profiles from search results{% endif %}.</p>
-        {% endif %}
-        </div>
-      {% else %}
-      <div class="empty slim">
-        <h3>No scans yet</h3>
-        <p>A scan looks for look-alike domains, copycat apps, channels and accounts, then investigates each one.</p>
-        <form method="post" action="/brands/{{ brand.id }}/scan">{{ m.csrf() }}<button class="btn quiet">{{ m.icon("scan") }}Scan now</button></form>
-      </div>
-      {% endif %}
+      <div class="section-head"><h2>Latest scan</h2><span class="small muted">Discovery, lead investigations and asset checks</span></div>
+      {% include "_scan_progress.html" %}
     </section>
   </div>
 

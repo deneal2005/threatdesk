@@ -30,7 +30,7 @@ CHECK = {
     "youtube_channel": "YouTube channel", "telegram_page": "Telegram page", "bluesky_profile": "Bluesky profile",
     "public_og_tags": "Public page tags", "social_profile": "Profile data", "user_profile_details": "Profile details",
     "photo_vs_logo": "Photo vs logo", "text_rules": "Message text", "ai_text": "AI classification",
-    "handle_similarity": "Handle similarity",
+    "handle_similarity": "Handle similarity", "third_party_trust": "Third-party trust report (not scored)",
 }
 CHECK_STATUS = {"ran": "Ran", "not_possible": "Couldn't run", "not_configured": "Not configured"}
 EVIDENCE = {
@@ -184,6 +184,11 @@ def check_summary(check: str, status: str, d: dict) -> str:
                  "user_profile_details"):
         name = d.get("title") or d.get("name") or d.get("display_name") or d.get("handle") or ""
         bits = [f"“{_short(name, 50)}”"] if name else []
+        aff = d.get("affiliation") or {}
+        if aff.get("status") in ("affiliated", "likely_affiliated", "needs_review"):
+            label = {"affiliated": "linked to the brand", "likely_affiliated": "likely the brand's own",
+                     "needs_review": "regional name, unconfirmed"}[aff["status"]]
+            bits.append(f"{label} (affiliation confidence {aff.get('confidence', 0)}%)")
         if d.get("followers") is not None:
             bits.append(f"{d['followers']:,} followers" if isinstance(d["followers"], int) else f"{d['followers']} followers")
         if d.get("created"):
@@ -195,6 +200,10 @@ def check_summary(check: str, status: str, d: dict) -> str:
         return " · ".join(bits) or "Read"
     if check == "ai_text":
         return f"{(d.get('category') or '').replace('_', ' ')} · likelihood {d.get('likelihood')}"
+    if check == "third_party_trust":
+        bits = [f"trust {d.get('trust_score')}/100" if d.get("trust_score") is not None else "",
+                f"{d.get('risk_level')} risk" if d.get("risk_level") else "", d.get("site_status") or ""]
+        return " · ".join(b for b in bits if b) + " · context only, adds no points"
     if check == "handle_similarity":
         return f"Similar to official @{d['similar_to']}" if d.get("similar_to") else "No similar official handle"
     return d.get("note") or "Ran"

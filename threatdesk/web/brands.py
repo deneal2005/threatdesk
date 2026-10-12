@@ -1,13 +1,13 @@
 """Brand list, create, settings, logo, allow list, scan trigger. Official assets live in web/assets.py."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from threatdesk import brands as svc
-from threatdesk import jobs
+from threatdesk import branddelete, scanrun
 from threatdesk.assets import store
 from threatdesk.assets.forms import parse_initial_assets
 from threatdesk.db import get_db
@@ -17,7 +17,7 @@ from threatdesk.reconcile import reconcile_brand
 from threatdesk.safety import InvalidInput, clean_domain, clean_text
 from threatdesk.tenancy import get_owned, scoped
 from threatdesk.web.brandpage import brand_page
-from threatdesk.web.deps import csrf_protect, current_user
+from threatdesk.web.deps import csrf_protect, current_user, require_admin
 from threatdesk.web.templating import render
 
 router = APIRouter()
@@ -119,12 +119,49 @@ async def update_brand(brand_id: int, request: Request, user: User = Depends(cur
     return RedirectResponse(f"/brands/{brand.id}?m=saved", status_code=303)
 
 
+@router.get("/brands/{brand_id:int}/delete")
+def confirm_delete_brand(brand_id: int, request: Request, user: User = Depends(require_admin),
+                         db: Session = Depends(get_db)):
+    brand = get_owned(db, Brand, brand_id, user.org_id)
+    return render(request, "brand_delete.html", {"brand": brand, "impact": branddelete.impact(db, brand)})
+
+
+@router.post("/brands/{brand_id:int}/delete", dependencies=[CSRF])
+async def delete_brand(brand_id: int, request: Request, user: User = Depends(require_admin),
+                       db: Session = Depends(get_db)):
+    brand = get_owned(db, Brand, brand_id, user.org_id)
+    typed = str((await request.form()).get("confirm_name") or "").strip()
+    if typed.casefold() != brand.name.strip().casefold():
+        return render(request, "brand_delete.html", {
+            "brand": brand, "impact": branddelete.impact(db, brand),
+            "error": "The name you typed doesn't match, so nothing was deleted."}, 400)
+    branddelete.delete_brand(db, brand)
+    db.commit()
+    return RedirectResponse("/brands?m=brand_deleted", status_code=303)
+
+
 @router.get("/brands/{brand_id:int}/logo")
 def brand_logo(brand_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
     brand = get_owned(db, Brand, brand_id, user.org_id)
     if not brand.logo_blob:
         return Response(status_code=404)
     return Response(brand.logo_blob, media_type="image/png", headers={"Cache-Control": "private, max-age=300"})
+
+
+@router.post("/brands/{brand_id:int}/setup/{step}/{action}", dependencies=[CSRF])
+def setup_skip(brand_id: int, step: str, action: str, user: User = Depends(current_user),
+               db: Session = Depends(get_db)):
+    """Mark an optional setup step as not applicable (no apps, no social accounts), or undo that."""
+    from threatdesk.web.brandpage import SKIPPABLE
+    brand = get_owned(db, Brand, brand_id, user.org_id)
+    if step not in SKIPPABLE or action not in ("skip", "unskip"):
+        raise HTTPException(404, "Not found.")
+    det = dict(brand.detection or {})
+    skipped = [s for s in det.get("setup_skipped") or [] if s != step]
+    det["setup_skipped"] = skipped + ([step] if action == "skip" else [])
+    brand.detection = det
+    db.commit()
+    return RedirectResponse(f"/brands/{brand.id}?m=saved", status_code=303)
 
 
 @router.post("/brands/{brand_id:int}/whitelist", dependencies=[CSRF])
@@ -159,13 +196,49 @@ def delete_whitelist(brand_id: int, wid: int, user: User = Depends(current_user)
     return RedirectResponse(f"/brands/{brand.id}?tab=allow&m=deleted", status_code=303)
 
 
+def _after_scan(back: str, brand: Brand, started: bool) -> RedirectResponse:
+    m = "queued" if started else "scan_already_running"
+    if back == "dashboard":
+        return RedirectResponse(f"/?m={m}", status_code=303)
+    return RedirectResponse(f"/brands/{brand.id}?m={m}", status_code=303)
+
+
 @router.post("/brands/{brand_id:int}/scan", dependencies=[CSRF])
-def scan_now(brand_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+async def scan_now(brand_id: int, request: Request, user: User = Depends(current_user),
+                   db: Session = Depends(get_db)):
+    """Discovery, investigation of every lead, and a check of every unverified official asset, in the background."""
     brand = get_owned(db, Brand, brand_id, user.org_id)
-    if not jobs.has_pending(db, "scan", user.org_id, "brand_id", brand.id):
-        jobs.enqueue(db, "scan", {"brand_id": brand.id}, user.org_id, created_by=user.id, max_attempts=3)
-        db.commit()
-    return RedirectResponse(f"/brands/{brand.id}?m=queued", status_code=303)
+    _scan, started = scanrun.start(db, brand, user.id)
+    db.commit()
+    back = str((await request.form()).get("back") or "")
+    if request.headers.get("hx-request"):
+        return brand_scan_panel(request, db, brand, compact=back == "dashboard")
+    return _after_scan(back, brand, started)
+
+
+@router.post("/scan-all", dependencies=[CSRF])
+def scan_all(user: User = Depends(current_user), db: Session = Depends(get_db)):
+    started = [scanrun.start(db, b, user.id)[1] for b in db.scalars(scoped(Brand, user.org_id))]
+    db.commit()
+    m = "queued_all" if any(started) else "scan_already_running" if started else "no_brands"
+    return RedirectResponse(f"/?m={m}", status_code=303)
+
+
+def brand_scan_panel(request: Request, db: Session, brand: Brand, compact: bool = False, button: bool = False):
+    """The progress panel; on a poll it also refreshes the page's scan button (the brand header, or the dashboard's
+    when it scans a single brand) so the button re-enables when the scan ends."""
+    p = scanrun.progress(db, brand)
+    polled = bool(request.headers.get("hx-request"))
+    return render(request, "_scan_progress.html", {
+        "brand": brand, "p": p, "compact": compact, "with_button": button, "scan_running": bool(p and p.active),
+        "oob_button": polled and (button or not compact)})
+
+
+@router.get("/brands/{brand_id:int}/scan/progress")
+def scan_progress(brand_id: int, request: Request, compact: int = 0, button: int = 0,
+                  user: User = Depends(current_user), db: Session = Depends(get_db)):
+    brand = get_owned(db, Brand, brand_id, user.org_id)
+    return brand_scan_panel(request, db, brand, compact=bool(compact), button=bool(button))
 
 
 @router.get("/discovery")

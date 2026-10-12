@@ -14,16 +14,24 @@
   </div>
   {% if brands %}
   <div class="actions">
-    <form method="post" action="/brands/{{ brands[0].id }}/scan" class="quick-scan-form">
+    {% if brands|length == 1 %}
+    {% with brand=brands[0], compact=True, oob_button=False, scan_running=(scan_cards and scan_cards[0][1].active) %}{% include "_scan_button.html" %}{% endwith %}
+    {% else %}
+    <form method="post" action="/scan-all" class="quick-scan-form">
       {{ m.csrf() }}
-      <button class="btn" type="submit" title="Scan registries, certificate logs, and app stores for {{ brands[0].name }}">
-        {{ m.icon("scan") }} Scan {{ brands[0].name }} now
-      </button>
+      <button class="btn" type="submit" title="Scan every brand (brands already scanning are left alone)">{{ m.icon("scan") }} Scan all {{ brands|length }} brands</button>
     </form>
-    {% if brands|length > 1 %}<a class="btn ghost" href="/brands">All {{ brands|length }} brands</a>{% endif %}
+    <a class="btn ghost" href="/brands">All brands</a>
+    {% endif %}
   </div>
   {% endif %}
 </header>
+
+{% if scan_cards %}
+<section class="section scan-cards" aria-label="Scan activity">
+  {% for brand, p in scan_cards %}{% with compact=True, with_button=brands|length == 1 %}{% include "_scan_progress.html" %}{% endwith %}{% endfor %}
+</section>
+{% endif %}
 
 {# --- 4 Operational Metric Areas --- #}
 <section class="section metrics-strip-section">
@@ -195,61 +203,25 @@
       </table>
     </div>
     {% elif not brands %}
-    <div class="sheet pad onboarding-checklist-panel">
-      <div class="panel-head-compact">
-        <span class="eyebrow">First-Time Setup</span>
-        <h3 class="panel-title-md">Start by adding your brand</h3>
-        <span class="small muted">Organization Onboarding Checklist</span>
-      </div>
-      <p class="lede small" style="margin-top: 0.25rem;">
-        ThreatDesk needs your official perimeter details to identify impersonators, typosquats, and unauthorized apps without false positives.
-      </p>
-      <ol class="rows checklist-steps" style="list-style: none; padding: 0; margin: 1rem 0;">
-        <li style="display: flex; gap: 0.75rem; align-items: flex-start; padding: 0.75rem 0; border-bottom: 1px solid var(--border);">
-          <span class="source-state ok" style="margin-top: 0.2rem;" aria-hidden="true"></span>
-          <span class="grow">
-            <strong>1. Organization Created</strong>
-            <span class="cell-sub">Tenant workspace isolated and administrative account active.</span>
-          </span>
-          <span class="cs cs-ran">Completed</span>
+    <section class="sheet setup" aria-labelledby="onboard-title">
+      <div class="setup-head"><h2 id="onboard-title">Start by adding the brand you protect</h2><span class="small muted">0 of 3 done</span></div>
+      <p class="small muted setup-intro">ThreatDesk compares everything it finds against your brand's name and official assets, so it can tell look-alikes from what is genuinely yours.</p>
+      <ol class="setup-steps">
+        <li class="setup-step is-todo">
+          <span class="step-mark" aria-hidden="true">1</span>
+          <div class="step-body"><strong>Add your brand</strong><span class="cell-sub">Its name, keywords and main website. Takes a minute.</span></div>
+          <div class="step-actions"><a class="btn sm" href="/brands/new">{{ m.icon("plus") }}Add brand</a></div>
         </li>
-        <li style="display: flex; gap: 0.75rem; align-items: flex-start; padding: 0.75rem 0; border-bottom: 1px solid var(--border);">
-          <span class="source-state off" style="margin-top: 0.2rem;" aria-hidden="true"></span>
-          <span class="grow">
-            <strong>2. Register Protected Brand Profile</strong>
-            <span class="cell-sub">Add brand name, industry, and official keywords to anchor detection models.</span>
-          </span>
-          <a class="btn sm" href="/brands/new">{{ m.icon("plus") }} Register Brand</a>
+        <li class="setup-step is-blocked">
+          <span class="step-mark" aria-hidden="true">2</span>
+          <div class="step-body"><strong>Verify your website and list your accounts and apps</strong><span class="cell-sub">Available once the brand exists. Optional, but it prevents false alarms.</span></div>
         </li>
-        <li style="display: flex; gap: 0.75rem; align-items: flex-start; padding: 0.75rem 0; border-bottom: 1px solid var(--border);">
-          <span class="source-state off" style="margin-top: 0.2rem;" aria-hidden="true"></span>
-          <span class="grow">
-            <strong>3. Register Official Perimeter Assets</strong>
-            <span class="cell-sub">Add primary websites, verified social handles, and mobile app IDs to allowlists.</span>
-          </span>
-          <span class="cs cs-not_configured">Pending Step 2</span>
-        </li>
-        <li style="display: flex; gap: 0.75rem; align-items: flex-start; padding: 0.75rem 0; border-bottom: 1px solid var(--border);">
-          <span class="source-state off" style="margin-top: 0.2rem;" aria-hidden="true"></span>
-          <span class="grow">
-            <strong>4. Run First Discovery Scan</strong>
-            <span class="cell-sub">Scan registries, certificate transparency logs, social networks, and app stores.</span>
-          </span>
-          <span class="cs cs-not_configured">Pending Step 2</span>
-        </li>
-        <li style="display: flex; gap: 0.75rem; align-items: flex-start; padding: 0.75rem 0;">
-          <span class="source-state off" style="margin-top: 0.2rem;" aria-hidden="true"></span>
-          <span class="grow">
-            <strong>5. Triage Detected Findings</strong>
-            <span class="cell-sub">Review high-priority alerts, inspect threat evidence, and coordinate takedowns.</span>
-          </span>
-          <span class="cs cs-not_configured">Pending Step 4</span>
+        <li class="setup-step is-blocked">
+          <span class="step-mark" aria-hidden="true">3</span>
+          <div class="step-body"><strong>Run a scan</strong><span class="cell-sub">Finds look-alike domains, apps and accounts, then investigates each one. Results land in Findings.</span></div>
         </li>
       </ol>
-      <div style="margin-top: 1rem;">
-        <a class="btn" href="/brands/new">{{ m.icon("plus") }} Start Onboarding: Add Brand</a>
-      </div>
-    </div>
+    </section>
     {% else %}
     <div class="empty">
       <h3>All caught up!</h3>

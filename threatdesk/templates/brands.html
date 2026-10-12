@@ -10,9 +10,9 @@
   {% if brands %}<div class="actions"><a class="btn" href="/brands/new">{{ m.icon("plus") }}Add a brand</a></div>{% endif %}
 </header>
 {% if brands %}
-<div class="table-wrap">
+<div class="table-wrap has-menus">
   <table>
-    <thead><tr><th>Brand</th><th>Main website</th><th>Official assets</th><th class="hide-sm">Automatic scans</th><th class="hide-sm">Last scan</th></tr></thead>
+    <thead><tr><th>Brand</th><th>Main website</th><th>Official assets</th><th class="hide-sm">Automatic scans</th><th class="hide-sm">Last scan</th><th class="tight"><span class="sr">Actions</span></th></tr></thead>
     <tbody>
     {% for b in brands %}
       {% set c = counts.get(b.id, {"website": 0, "social": 0, "app": 0, "verified": 0}) %}
@@ -23,6 +23,17 @@
           <span class="cell-sub">{{ c.verified }} verified</span></td>
         <td class="hide-sm">{% if b.scan_interval_hours %}Every {{ b.scan_interval_hours }} h{% else %}Off{% endif %}</td>
         <td class="hide-sm faint" title="{{ b.last_scan_at|dt }}">{{ b.last_scan_at|ago if b.last_scan_at else "Never" }}</td>
+        <td class="tight">
+          <details class="menu">
+            <summary class="btn ghost sm" aria-label="Actions for {{ b.name }}"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="4.5" cy="10" r="1.9"/><circle cx="10" cy="10" r="1.9"/><circle cx="15.5" cy="10" r="1.9"/></svg></summary>
+            <div class="menu-pop">
+              <a class="menu-item" href="/brands/{{ b.id }}">Open overview</a>
+              <a class="menu-item" href="/findings?brand_id={{ b.id }}">Findings</a>
+              <a class="menu-item" href="/brands/{{ b.id }}/edit">Brand settings</a>
+              {% if user.role == "admin" %}<a class="menu-item danger" href="/brands/{{ b.id }}/delete">Delete brand…</a>{% endif %}
+            </div>
+          </details>
+        </td>
       </tr>
     {% endfor %}
     </tbody>

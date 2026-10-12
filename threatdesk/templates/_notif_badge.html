@@ -1,0 +1,2 @@
+{# Unread count on the bell. Refreshes itself every minute; the dropdown also updates it out of band. #}
+<span id="notif-badge" class="topbar-count{% if not unread %} is-empty{% endif %}" hx-get="/notifications/badge" hx-trigger="every 60s" hx-swap="outerHTML"{% if oob %} hx-swap-oob="true"{% endif %}>{% if unread %}<span aria-hidden="true">{{ unread if unread < 100 else "99+" }}</span><span class="sr">{{ unread }} unread alert{{ "s" if unread != 1 }}</span>{% endif %}</span>

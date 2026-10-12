@@ -80,6 +80,11 @@ RULES: dict[str, tuple[int, str]] = {
     "bio_link_lookalike": (20, "profile links to a non-official site whose name imitates the brand"),
     "platform_verified": (-10, "the platform shows a verified badge (often an unlisted official or partner account)"),
     "established_account": (-15, "established account: 2+ years old with 10,000+ followers"),
+    "linked_from_official_site": (-50, "an official brand website links to this account (the brand published it)"),
+    "links_to_official_site": (-10, "a link in the profile resolves to an official brand domain (weak on its own: "
+                                    "impostors link to the real site too)"),
+    "regional_variant": (-5, "named as the brand plus a region, language or product, the way brands name their own "
+                             "local and product accounts"),
     # AI (bounded, labelled)
     "ai_assessment": (15, "AI assessment: likely scam (labeled AI, rules decide)"),
 }
@@ -119,7 +124,8 @@ class Scorecard:
 # not evidence of abuse (fan pages, resellers, unrelated businesses share names).
 IDENTITY = {"handle_similar", "name_similar", "app_impersonation", "app_publisher_lookalike", "app_package_lookalike",
             "domain_lookalike", "domain_has_brand", "known_brand_unofficial", "phishing_words_in_domain"}
-OWNERSHIP = {"redirects_to_official", "brand_protection_registrar", "registrant_is_brand", "shares_official_nameservers"}
+OWNERSHIP = {"redirects_to_official", "brand_protection_registrar", "registrant_is_brand", "shares_official_nameservers",
+             "linked_from_official_site"}
 REPUTATION = {"safe_browsing_hit", "virustotal_malicious", "virustotal_suspicious", "urlhaus_listed",
               "phishtank_verified", "scam_list_hit", "hosting_abuse_block"}
 CONTENT = {"asks_credentials", "payment_only_risky", "urgency", "big_discount", "earn_loan_claims",
@@ -157,7 +163,8 @@ CORROBORATION_MIN = 10
 # name match on their own (a defensive registration has no archive, a redacted registrant and often no TLS).
 # Real brand accounts call themselves "official": on a platform-verified or long-established account that claim
 # no longer corroborates a look-alike name.
-LEGITIMACY = {"platform_verified", "established_account"}
+# A regional or product name (YouTube India) is how real accounts are named, and real accounts call themselves official.
+LEGITIMACY = {"platform_verified", "established_account", "regional_variant", "links_to_official_site"}
 LEGITIMACY_WEAKENS = {"claims_official"}
 # A single VirusTotal engine (of ~90) is noise: it adds its points but never corroborates a name match alone.
 WEAK_CONTEXT = {"no_archive_history", "registrant_redacted", "tls_invalid", "tls_new_cert", "redirect_offsite",
@@ -168,9 +175,17 @@ def hard_evidence(codes: set[str]) -> bool:
     return bool(codes & HARD_EVIDENCE) or ("asks_credentials" in codes and bool(codes & BRAND_CLAIMS))
 
 
-STRONG_OWNERSHIP = {"brand_protection_registrar", "registrant_is_brand", "shares_official_nameservers"}
+STRONG_OWNERSHIP = {"brand_protection_registrar", "registrant_is_brand", "shares_official_nameservers",
+                    "linked_from_official_site"}
+# Evidence that a brand-named account is one of the brand's regional or product accounts (affiliation.py).
+AFFILIATION_SUPPORT = {"platform_verified", "established_account", "links_to_official_site"}
 ABUSE = HARD_EVIDENCE | {"asks_credentials", "scam_phrases", "payment_only_risky", "earn_loan_claims", "lure_title",
                          "contact_bait", "claims_official"}
+
+
+# What rules out "the brand's own regional account". Calling itself official is normal for a real account, so
+# claims_official alone does not; scam text, contact bait, look-alike links or a brand-new account do.
+AFFILIATION_ABUSE = (ABUSE - {"claims_official"}) | {"bio_link_lookalike", "account_lt_90d"}
 
 
 def ownership_evidence(codes: set[str], strong_only: bool = False) -> bool:

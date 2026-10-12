@@ -17,7 +17,7 @@ def test_signup_creates_org_and_admin_and_logs_in():
         assert s.get(Org, u.org_id).name == "Acme Org"
     r = c.get("/")
     assert r.status_code == 200
-    assert "boss@example.com" in r.text and "Start by adding your brand" in r.text
+    assert "boss@example.com" in r.text and "Start by adding the brand you protect" in r.text
 
 
 def test_requires_login():

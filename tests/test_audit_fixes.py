@@ -127,6 +127,5 @@ def test_integration_health_and_onboarding_checklist():
     # Dashboard with 0 brands displays Onboarding Checklist
     r_dash = c.get("/dashboard")
     assert r_dash.status_code == 200
-    assert "Organization Onboarding Checklist" in r_dash.text
-    assert "1. Organization Created" in r_dash.text
-    assert "2. Register Protected Brand Profile" in r_dash.text
+    assert "Start by adding the brand you protect" in r_dash.text and "Organization Created" not in r_dash.text
+    assert "Add your brand" in r_dash.text and 'href="/brands/new"' in r_dash.text

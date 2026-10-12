@@ -1,0 +1,27 @@
+{# Body of the bell dropdown (loaded when it opens, re-rendered after mark-as-read). #}
+<div class="notif-head">
+  <strong>Alerts</strong>
+  <span class="small muted">{% if unread %}{{ unread }} unread{% else %}All read{% endif %}</span>
+  {% if unread %}<button type="button" class="linklike small" hx-post="/notifications/read" hx-target="#notif-pop" hx-swap="innerHTML">Mark all as read</button>{% endif %}
+</div>
+{% if rows %}
+<ul class="notif-list">
+  {% for n in rows %}
+  <li class="notif-item{% if not n.read %} is-unread{% endif %}">
+    <a class="notif-link" href="/notifications/{{ n.id }}/open">
+      <span class="dot" aria-hidden="true"></span>
+      <span class="notif-text">{{ n.text|dfg|truncate(150) }}{% if not n.read %}<span class="sr"> (unread)</span>{% endif %}</span>
+      <span class="notif-time small faint" title="{{ n.created|dt }}">{{ n.created|ago }}</span>
+    </a>
+    {% if not n.read %}<button type="button" class="notif-mark" hx-post="/notifications/{{ n.id }}/read" hx-target="#notif-pop" hx-swap="innerHTML" title="Mark as read" aria-label="Mark as read"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 6.2l2.3 2.3 4.7-5"/></svg></button>{% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<div class="notif-empty">
+  <strong>You're all caught up</strong>
+  <p class="small muted">An alert appears for each new finding from a scan or a customer report.</p>
+</div>
+{% endif %}
+<div class="notif-foot"><a href="/notifications">View all alerts</a><a href="/settings#alerts" class="small muted">Email &amp; webhook alerts</a></div>
+{% if oob %}{% include "_notif_badge.html" %}{% endif %}

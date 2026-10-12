@@ -31,13 +31,15 @@ async def _guarded(name: str, coro, deadline: float) -> tuple[str, str, list]:
         return name, f"failed: {type(e).__name__}", []
 
 
-def _persist(org_id: int, brand_id: int, url_lists: dict[str, list[str]], search_reports: list) -> dict:
+def _persist(org_id: int, brand_id: int, url_lists: dict[str, list[str]], search_reports: list,
+             scan_id: int | None = None) -> dict:
     from threatdesk.monitoring import notify_new_finding
     enqueued, new_from_search, profiles = 0, 0, 0
     with session_scope() as db:
         brand = db.scalar(select(Brand).where(Brand.id == brand_id, Brand.org_id == org_id))
-        if brand is not None:
-            brand.last_scan_at = utcnow()
+        if brand is None:                      # deleted while the scan ran: leave nothing behind
+            return {"skipped": "brand deleted during the scan", "enqueued": 0, "search_findings_new": 0}
+        brand.last_scan_at = utcnow()
         seen: set[str] = set()
         for name, urls in url_lists.items():
             for u in urls:
@@ -45,7 +47,7 @@ def _persist(org_id: int, brand_id: int, url_lists: dict[str, list[str]], search
                     continue
                 seen.add(u)
                 jobs.enqueue(db, "investigate", {"url": u, "brand_id": brand_id, "source": f"discovery:{name}",
-                                                 "in_triage": True}, org_id, max_attempts=2)
+                                                 "in_triage": True, "scan_id": scan_id}, org_id, max_attempts=2)
                 enqueued += 1
         db.commit()
         for r in search_reports:
@@ -57,7 +59,7 @@ def _persist(org_id: int, brand_id: int, url_lists: dict[str, list[str]], search
             if get_settings().apify_token and profiles < MAX_APIFY_PROFILES and \
                     r.link.get("platform") in ("instagram", "tiktok", "facebook"):
                 jobs.enqueue(db, "investigate", {"url": r.url, "brand_id": brand_id, "source": "discovery:websearch",
-                                                 "in_triage": True}, org_id, max_attempts=2)
+                                                 "in_triage": True, "scan_id": scan_id}, org_id, max_attempts=2)
                 profiles += 1
     return {"enqueued": enqueued, "search_findings_new": new_from_search, "profiles_to_read": profiles}
 
@@ -80,5 +82,5 @@ async def run_scan(jid: int, org_id: int, brand_id: int) -> dict:
             _guarded("websearch", src_websearch(client, brand, settings), deadline))
     url_lists = {name: items for name, _status, items in results if name != "websearch"}
     search_reports = next(items for name, _s, items in results if name == "websearch")
-    persisted = await asyncio.to_thread(_persist, org_id, brand_id, url_lists, search_reports)
+    persisted = await asyncio.to_thread(_persist, org_id, brand_id, url_lists, search_reports, jid)
     return {"sources": [{"name": n, "status": s, "candidates": len(items)} for n, s, items in results], **persisted}

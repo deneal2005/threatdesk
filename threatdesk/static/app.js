@@ -139,6 +139,47 @@
     });
   }
 
+  /* Alerts dropdown: loads the latest alerts each time it opens; shows a retry when loading fails ---- */
+  function initNotifications() {
+    var menu = document.getElementById('notif-menu');
+    var pop = document.getElementById('notif-pop');
+    if (!menu || !pop) return;
+    function load() {
+      if (!window.htmx) return;           // without htmx the placeholder keeps its "View all alerts" link
+      pop.setAttribute('aria-busy', 'true');
+      window.htmx.ajax('GET', '/notifications/menu', { target: '#notif-pop', swap: 'innerHTML' });
+    }
+    function failed() {
+      pop.removeAttribute('aria-busy');
+      pop.innerHTML = '';
+      var box = document.createElement('div');
+      box.className = 'notif-error';
+      box.setAttribute('role', 'alert');
+      var p = document.createElement('p');
+      p.className = 'small';
+      p.textContent = 'Alerts could not be loaded. Check your connection and try again.';
+      var retry = document.createElement('button');
+      retry.type = 'button';
+      retry.className = 'btn quiet sm';
+      retry.textContent = 'Try again';
+      retry.addEventListener('click', function (e) { e.stopPropagation(); load(); });
+      var all = document.createElement('a');
+      all.href = '/notifications';
+      all.className = 'small';
+      all.textContent = 'Open the alerts page';
+      box.appendChild(p); box.appendChild(retry); box.appendChild(all);
+      pop.appendChild(box);
+    }
+    menu.addEventListener('toggle', function () { if (menu.open) load(); });
+    document.addEventListener('htmx:afterSwap', function (e) { if (e.target === pop) pop.removeAttribute('aria-busy'); });
+    ['htmx:responseError', 'htmx:sendError', 'htmx:timeout'].forEach(function (name) {
+      document.addEventListener(name, function (e) {
+        var t = e.detail && (e.detail.target || e.detail.elt);
+        if (t && (t === pop || pop.contains(t))) failed();
+      });
+    });
+  }
+
   /* Bulk false-positive confirmation (CSP compliant, no inline script) */
   function initBulk() {
     var bulkForm = document.querySelector('form[action="/findings/bulk"]');
@@ -161,7 +202,7 @@
   function initForms() {
     document.addEventListener('submit', function (e) {
       var form = e.target;
-      if (!(form instanceof HTMLFormElement)) return;
+      if (!(form instanceof HTMLFormElement) || e.defaultPrevented) return;   // a form's own handler said no
       var question = form.getAttribute('data-confirm');
       if (question && !window.confirm(question)) { e.preventDefault(); return; }
       if (form.method.toLowerCase() !== 'post') return;
@@ -300,6 +341,7 @@
     initCopy();
     initRemembered();
     initBulk();
+    initNotifications();
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

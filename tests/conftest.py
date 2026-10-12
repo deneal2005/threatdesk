@@ -18,4 +18,6 @@ def fresh_db():
     config.get_settings()
     db.reset_engine("sqlite+pysqlite:///:memory:")
     db.create_all()
+    from threatdesk import affiliation
+    affiliation._site_cache.clear()
     yield

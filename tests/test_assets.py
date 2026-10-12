@@ -86,7 +86,7 @@ def test_quick_start_creates_records_and_index():
         assert b.official_handles["instagram"] == ["acmebank", "acmebank.help", "acmebank_in"]
         assert b.official_apps["android"] == ["com.acme.bank"] and b.official_apps["ios"] == ["1234567890"]
     page = c.get(f"/brands/{bid}").text
-    assert "Finish setting up" in page and "Customer report link" in page
+    assert "Set up Acme" in page and "of 5 done" in page and "Customer report link" in page
 
 
 def test_invalid_quick_start_names_the_line_and_keeps_input():
