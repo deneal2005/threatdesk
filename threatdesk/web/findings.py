@@ -64,8 +64,10 @@ def list_findings(request: Request, user: User = Depends(current_user), db: Sess
         base = base.where(Finding.brand_id == brand_id)
     sev_raw = severity.strip().capitalize() if severity else ""
     sev_norm = "High" if severity.lower() == "critical" else sev_raw
-    if sev_norm in ("High", "Medium", "Low"):
-        base = base.where(Finding.severity == sev_norm)
+    # Keep the canonical value so the panel preselects it and Apply/paging carry it; an unknown one is no filter
+    severity = sev_norm if sev_norm in ("High", "Medium", "Low") else ""
+    if severity:
+        base = base.where(Finding.severity == severity)
     if source == "discovery":                  # every automated scan source ("discovery:web_search", ...)
         base = base.where(Finding.source.like("discovery:%"))
     elif source:

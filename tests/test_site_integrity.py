@@ -47,6 +47,14 @@ def test_findings_search_and_severity_normalization():
 
     r_crit = c.get("/findings?severity=critical")
     assert r_crit.status_code == 200
+    # The panel preselects the canonical value, so applying another filter keeps the severity
+    for r in (r_high, r_crit):
+        assert '<option value="High" selected>' in r.text
+        assert "&amp;severity=High" in r.text
+
+    # An unknown severity is not counted or carried as an active filter
+    r_bad = c.get("/findings?severity=bogus")
+    assert "severity=bogus" not in r_bad.text and 'aria-label="Filter Options,' not in r_bad.text
 
     # Search parameter q
     r_q = c.get("/findings?q=paypal")

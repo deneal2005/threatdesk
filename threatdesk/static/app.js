@@ -140,27 +140,23 @@
     });
   }
 
-  /* Findings filter panel: choosing a value applies it straight away and closes the panel ------- */
+  /* Findings filter panel: stays open while several filters are chosen; only Apply Filters submits ---- */
   function initFilterPanel() {
     var details = document.querySelector('details.filter-toggle');
     var form = details && details.querySelector('form.filter-panel');
     if (!form) return;
-    // Arrow keys on a closed <select> change its value one step at a time: only auto-apply pointer choices,
-    // keyboard users confirm with the Apply button as before
-    var viaKeyboard = false;
-    form.addEventListener('keydown', function (e) { if (e.key !== 'Tab') viaKeyboard = true; });
-    form.addEventListener('pointerdown', function () { viaKeyboard = false; });
-    form.addEventListener('change', function (e) {
-      if (viaKeyboard || !e.target.matches('select, input[type="checkbox"]')) return;
-      if (form.requestSubmit) form.requestSubmit(); else form.submit();
-    });
+    var submitting = false;
+    // Closed without Apply (outside click, Escape, summary): drop the unapplied choices so the panel matches the list
+    details.addEventListener('toggle', function () { if (!details.open && !submitting) form.reset(); });
     form.addEventListener('submit', function () {
+      submitting = true;
       details.removeAttribute('open');
       var summary = details.querySelector('summary');
       if (summary) { summary.classList.add('is-busy'); summary.setAttribute('aria-busy', 'true'); }
     });
     // Back/forward cache restores the page as it was left: clear the busy state
     window.addEventListener('pageshow', function () {
+      submitting = false;
       var summary = details.querySelector('summary');
       if (summary) { summary.classList.remove('is-busy'); summary.removeAttribute('aria-busy'); }
     });
