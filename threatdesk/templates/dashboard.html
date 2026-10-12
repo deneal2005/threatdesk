@@ -1,22 +1,22 @@
 {% extends "base.html" %}
 {% import "macros.html" as m with context %}
-{% block title %}Digital Safety Overview · ThreatDesk{% endblock %}
+{% block title %}Digital Risk Overview · ThreatDesk{% endblock %}
 {% block content %}
 
-{# --- Welcome & Platform Explanation --- #}
+{# --- Page Introduction --- #}
 <header class="page-head dash-head">
   <div class="titles">
-    <span class="eyebrow">Digital Safety Dashboard</span>
-    <h1>{% if metrics.new %}{{ metrics.new }} new finding{{ "s" if metrics.new != 1 }} to triage{% else %}All caught up — no new findings{% endif %}</h1>
+    <span class="eyebrow">Digital Safety Dashboard · ThreatDesk monitors the internet to protect your organization</span>
+    <h1>Digital Risk Overview</h1>
     <p class="lede">
-      ThreatDesk monitors the internet to protect your organization, customers, and digital reputation from impersonators, phishing scams, typosquat domains, and fraudulent mobile apps.
+      Understand current threats, review important findings, and coordinate the next steps.
     </p>
   </div>
   {% if brands %}
   <div class="actions">
     <form method="post" action="/brands/{{ brands[0].id }}/scan" class="quick-scan-form">
       {{ m.csrf() }}
-      <button class="btn" type="submit" title="Scan domains, social platforms, and app stores for {{ brands[0].name }}">
+      <button class="btn" type="submit" title="Scan registries, certificate logs, and app stores for {{ brands[0].name }}">
         {{ m.icon("scan") }} Run Discovery Scan ({{ brands[0].name }})
       </button>
     </form>
@@ -24,117 +24,131 @@
   {% endif %}
 </header>
 
-{# --- Operational Posture & Perimeter Scope Overview --- #}
-<section class="section">
-  <div class="ops-posture-panel sheet pad">
-    <div class="ops-posture-grid">
-      {# Primary Sector: Active Threat Posture & Triage Status #}
-      <div class="ops-primary-sector">
-        <div class="ops-sector-head">
-          <span class="eyebrow">Operational Threat Posture</span>
-          <span class="small muted">Real-time status across monitored perimeter</span>
-        </div>
-        <div class="ops-triage-split">
-          <div class="ops-metric-block ops-high {% if metrics.high_priority > 0 %}is-active{% endif %}">
-            <div class="ops-metric-label">
-              <span class="kpi-label">High-Priority Threats</span>
-              {% if metrics.high_priority > 0 %}
-              <span class="tagline hot">Requires Action</span>
-              {% else %}
-              <span class="tagline">Clear</span>
-              {% endif %}
-            </div>
-            <div class="ops-metric-val num bold">{{ metrics.high_priority }}</div>
-            <p class="small muted">High or critical severity cases needing response</p>
-            <a class="small action-link" href="/findings?severity=High">View high-priority →</a>
-          </div>
-
-          <div class="ops-metric-block ops-triage">
-            <div class="ops-metric-label">
-              <span class="kpi-label">Awaiting Triage</span>
-              <span class="kpi-icon" aria-hidden="true">{{ m.icon("overview") }}</span>
-            </div>
-            <div class="ops-metric-val num bold">{{ metrics.requiring_review }}</div>
-            <p class="small muted">New leads awaiting human review</p>
-            <a class="small action-link" href="/findings?view=new">Start triage →</a>
-          </div>
-        </div>
-
-        {# ThreatDesk Operational Pipeline #}
-        <div class="ops-pipeline">
-          <div class="pipe-step">
-            <span class="pipe-step-num">1</span>
-            <div>
-              <strong>Continuous Discovery</strong>
-              <p class="small muted">Registry, certificate, social and app store scans</p>
-            </div>
-          </div>
-          <div class="pipe-step">
-            <span class="pipe-step-num">2</span>
-            <div>
-              <strong>Plain-English Analysis</strong>
-              <p class="small muted">Heuristic scoring without cybersecurity jargon</p>
-            </div>
-          </div>
-          <div class="pipe-step">
-            <span class="pipe-step-num">3</span>
-            <div>
-              <strong>Coordinated Response</strong>
-              <p class="small muted">Takedown packets and verified protective alerts</p>
-            </div>
-          </div>
-        </div>
+{# --- 4 Operational Metric Areas --- #}
+<section class="section metrics-strip-section">
+  <div class="metrics-bar">
+    <div class="metric-card metric-urgent {% if metrics.high_priority > 0 %}is-active{% endif %}">
+      <div class="metric-header">
+        <span class="metric-label">High-Priority Threats</span>
+        <span class="metric-indicator indicator-high" aria-hidden="true">▲</span>
       </div>
+      <div class="metric-value num bold">{{ metrics.high_priority }}</div>
+      <p class="metric-caption">Urgent cases needing immediate takedown or response</p>
+      <a class="metric-action" href="/findings?severity=High">Review urgent threats →</a>
+    </div>
 
-      {# Secondary Sector: Protected Scope & Monitored Fleet #}
-      <div class="ops-secondary-sector">
-        <div class="ops-sector-head">
-          <span class="eyebrow">Perimeter Coverage</span>
-          <span class="small muted">Assets &amp; lifetime detection</span>
-        </div>
-        <div class="ops-fleet-metrics">
-          <div class="fleet-row">
-            <div>
-              <span class="kpi-label">Monitored Assets</span>
-              <p class="small muted">Official websites, apps &amp; profiles protected</p>
-            </div>
-            <div class="fleet-val">
-              <span class="num bold">{{ monitored_assets_count }}</span>
-              <a class="small" href="/brands">Manage assets →</a>
-            </div>
-          </div>
+    <div class="metric-card metric-triage {% if metrics.requiring_review > 0 %}is-active{% endif %}">
+      <div class="metric-header">
+        <span class="metric-label">Awaiting Review</span>
+        <span class="metric-indicator indicator-med" aria-hidden="true">◐</span>
+      </div>
+      <div class="metric-value num bold">{{ metrics.requiring_review }}</div>
+      <p class="metric-caption"><span class="sr">Awaiting Triage: </span>New leads awaiting human review</p>
+      <a class="metric-action" href="/findings?view=new">Open triage queue →</a>
+    </div>
 
-          <div class="fleet-row">
-            <div>
-              <span class="kpi-label">Total Threats Found</span>
-              <p class="small muted">Analyzed properties in your organization</p>
-            </div>
-            <div class="fleet-val">
-              <span class="num bold">{{ metrics.total_findings }}</span>
-              <a class="small" href="/findings?view=all">All findings →</a>
-            </div>
-          </div>
-        </div>
+    <div class="metric-card metric-fleet">
+      <div class="metric-header">
+        <span class="metric-label">Monitored Assets</span>
+        <span class="metric-indicator indicator-jade" aria-hidden="true">🛡️</span>
+      </div>
+      <div class="metric-value num bold">{{ monitored_assets_count }}</div>
+      <p class="metric-caption">Official websites, apps &amp; profiles protected</p>
+      <a class="metric-action" href="/brands">Manage brand assets →</a>
+    </div>
+
+    <div class="metric-card metric-total">
+      <div class="metric-header">
+        <span class="metric-label">Total Findings</span>
+        <span class="metric-indicator indicator-neutral" aria-hidden="true">•</span>
+      </div>
+      <div class="metric-value num bold">{{ metrics.total_findings }}</div>
+      <p class="metric-caption"><span class="sr">Total Threats Found: </span>Analyzed properties in your organization</p>
+      <a class="metric-action" href="/findings?view=all">View all findings →</a>
+    </div>
+  </div>
+</section>
+
+{# --- Discovery & Defense Pipeline --- #}
+<section class="pipeline-section sheet pad">
+  <div class="pipeline-header">
+    <span class="eyebrow">Detection &amp; Defense Lifecycle</span>
+    <span class="small muted">How ThreatDesk protects your perimeter</span>
+  </div>
+  <div class="pipeline-steps">
+    <div class="pipeline-step">
+      <div class="step-num">1</div>
+      <div class="step-info">
+        <strong>Continuous Discovery</strong>
+        <p class="small muted">Scans domain registries, certificate transparency logs, social networks, and mobile app stores for unauthorized brand look-alikes.</p>
+      </div>
+    </div>
+    <div class="pipeline-arrow" aria-hidden="true">→</div>
+    <div class="pipeline-step">
+      <div class="step-num">2</div>
+      <div class="step-info">
+        <strong>Plain-English Analysis</strong>
+        <p class="small muted">Evaluates domain age, certificates, credential harvesting lures, and threat blocklists without security jargon.</p>
+      </div>
+    </div>
+    <div class="pipeline-arrow" aria-hidden="true">→</div>
+    <div class="pipeline-step">
+      <div class="step-num">3</div>
+      <div class="step-info">
+        <strong>Coordinated Response</strong>
+        <p class="small muted">Review findings, generate evidence-backed takedown packets, and alert frontline customer support.</p>
       </div>
     </div>
   </div>
 </section>
 
-{# --- Instant Investigation Workflow --- #}
-<section class="section">
-  <div class="section-head">
-    <h2>Instant Threat Investigation</h2>
-    <span class="small muted">Check any suspicious link, app, or social profile</span>
-  </div>
-  {% with placeholder="Paste a suspicious website, Play/App Store link, or social profile URL", server_note=False, autofocus=False, value="", brand_id=None %}
-  {% include "_paste.html" %}
-  {% endwith %}
-</section>
-
-{# --- Main Dashboard Split: Prioritized Findings & Activity --- #}
+{# --- Main Operational Workspace: Asymmetric Split --- #}
 <div class="split section">
-  <section>
-    <div class="section-head">
+  <section class="ops-main-col">
+    {# --- Current Risk Overview: Severity Distribution --- #}
+    <div class="sheet pad risk-overview-panel">
+      <div class="risk-overview-head">
+        <div>
+          <span class="eyebrow">Current Risk Distribution</span>
+          <h3 class="panel-title-md">Active Finding Severity</h3>
+        </div>
+        {% set total_open = metrics.open['High'] + metrics.open['Medium'] + metrics.open['Low'] %}
+        <a class="small" href="/findings?view=open">See all open findings ({{ total_open }}) →</a>
+      </div>
+
+      {% if total_open > 0 %}
+      <div class="distribution-bar" role="img" aria-label="Risk distribution by severity: High: {{ metrics.open['High'] }}, Medium: {{ metrics.open['Medium'] }}, Low: {{ metrics.open['Low'] }}">
+        <div class="dist-seg seg-high" style="width: {{ (metrics.open['High'] / total_open * 100)|round(1) }}%;" title="High Risk: {{ metrics.open['High'] }}"></div>
+        <div class="dist-seg seg-med" style="width: {{ (metrics.open['Medium'] / total_open * 100)|round(1) }}%;" title="Medium Risk: {{ metrics.open['Medium'] }}"></div>
+        <div class="dist-seg seg-low" style="width: {{ (metrics.open['Low'] / total_open * 100)|round(1) }}%;" title="Low Risk: {{ metrics.open['Low'] }}"></div>
+      </div>
+      {% else %}
+      <div class="distribution-bar empty-dist" role="img" aria-label="No open findings">
+        <div class="dist-seg seg-empty" style="width: 100%;" title="No active findings"></div>
+      </div>
+      {% endif %}
+
+      <div class="dist-legend">
+        <a class="dist-legend-item" href="/findings?severity=High" title="Filter High Risk">
+          <span class="dist-icon high" aria-hidden="true">▲</span>
+          <span class="dist-label">High Risk</span>
+          <span class="dist-num num bold">{{ metrics.open['High'] }}</span>
+        </a>
+        <a class="dist-legend-item" href="/findings?severity=Medium" title="Filter Medium Risk">
+          <span class="dist-icon med" aria-hidden="true">◆</span>
+          <span class="dist-label">Medium Risk</span>
+          <span class="dist-num num bold">{{ metrics.open['Medium'] }}</span>
+        </a>
+        <a class="dist-legend-item" href="/findings?severity=Low" title="Filter Low Risk">
+          <span class="dist-icon low" aria-hidden="true">●</span>
+          <span class="dist-label">Low Risk</span>
+          <span class="dist-num num bold">{{ metrics.open['Low'] }}</span>
+        </a>
+      </div>
+    </div>
+
+    {# --- Prioritized Findings Table --- #}
+    <div class="section-head section-gap">
       <h2>Prioritized Findings Requiring Attention</h2>
       {% if queue %}<a class="small" href="/findings?view=new">View all triage queue ({{ metrics.new }})</a>{% endif %}
     </div>
@@ -145,8 +159,9 @@
         <thead>
           <tr>
             <th class="tight">Risk Level</th>
-            <th>Finding &amp; Plain-English Summary</th>
-            <th class="hide-sm">Protected Brand</th>
+            <th>Target Asset &amp; Detection Summary</th>
+            <th class="hide-sm">Brand</th>
+            <th class="hide-sm tight">Status</th>
             <th class="tight">Detected</th>
             <th class="tight"><span class="sr">Action</span></th>
           </tr>
@@ -162,6 +177,9 @@
               <span class="cell-sub">{{ f.kind|kind }} · {{ f.verdict }} · {{ f.source|source }}</span>
             </td>
             <td class="hide-sm">{{ names.get(f.brand_id, "-") }}</td>
+            <td class="hide-sm tight">
+              {{ m.status(f.status) }}
+            </td>
             <td class="tight faint" title="{{ f.last_seen|dt }}">{{ f.last_seen|ago }}</td>
             <td class="tight">
               <a class="btn quiet sm" href="/findings/{{ f.id }}">Review →</a>
@@ -248,25 +266,41 @@
     </div>
   </section>
 
-  {# --- Aside: Risk Distribution & Response Performance --- #}
-  <aside>
+  {# --- Aside: Supporting Investigation, Discovery, Metrics & Glossary --- #}
+  <aside class="ops-support-col">
+    {# --- Instant Investigation Workflow --- #}
     <div class="sheet pad">
-      <span class="eyebrow">Open findings by risk</span>
-      <p class="small muted">Active cases currently being investigated or tracked</p>
-      <div class="figures">
-        {% for sev in ("High", "Medium", "Low") %}
-        <div>
-          <a href="/findings?severity={{ sev }}">
-            {{ m.sev(sev) }}
-          </a>
-          <span class="fig num">{{ metrics.open[sev] }}</span>
-        </div>
-        {% endfor %}
+      <div class="panel-head-compact">
+        <span class="eyebrow">On-Demand Investigation</span>
+        <h3 class="panel-title-sm">Inspect Suspicious Property</h3>
       </div>
-      <div class="aside-sep"></div>
-      <a class="small" href="/findings?view=open">See all open findings →</a>
+      <p class="small muted">Analyze any suspicious link, domain, mobile app URL, or profile safely in an isolated environment.</p>
+      {% with placeholder="Paste domain, URL, or social link", server_note=False, autofocus=False, value="", brand_id=None %}
+      {% include "_paste.html" %}
+      {% endwith %}
     </div>
 
+    {# --- Brand Discovery Action --- #}
+    {% if brands %}
+    <div class="sheet pad">
+      <div class="panel-head-compact">
+        <span class="eyebrow">Perimeter Discovery</span>
+        <h3 class="panel-title-sm">Scan Registered Brands</h3>
+      </div>
+      <p class="small muted">Trigger automated scanning across domain registries, certificate logs, and stores for {{ brands[0].name }}.</p>
+      <form method="post" action="/brands/{{ brands[0].id }}/scan">
+        {{ m.csrf() }}
+        <button class="btn full sm" type="submit">
+          {{ m.icon("scan") }} Scan for {{ brands[0].name }}
+        </button>
+      </form>
+      {% if brands|length > 1 %}
+      <a class="small faint block mt-2" href="/brands">View all {{ brands|length }} registered brands →</a>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {# --- Response & Efficiency --- #}
     <div class="sheet pad">
       <span class="eyebrow">Response &amp; Efficiency</span>
       <p class="small muted">Real response performance metrics computed from verified case events</p>
@@ -301,6 +335,7 @@
       </div>
     </div>
 
+    {# --- Security Glossary --- #}
     <div class="sheet pad">
       <span class="eyebrow">Quick Security Glossary</span>
       <dl class="kv small">

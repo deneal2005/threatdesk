@@ -257,6 +257,44 @@ Live authenticated walkthrough using `TestClient` against the local database:
 
 ---
 
-## 8. Conclusion
+## 8. Persistent Sidebar & Operational Dashboard Redesign
 
-The non-technical UI upgrade for ThreatDesk successfully delivers a modern, accessible, and intuitive experience. Ordinary users can now effortlessly understand digital risk findings, appreciate their real-world impact, review the supporting evidence, and know exactly what actions to take—all without cybersecurity expertise.
+### Application-Wide Grouped Sidebar Navigation
+* **Visual Surface:** Dark green-black surface (`#0D1410`) with subtle green borders (`#1C2820`), off-white typography (`#ECEEEA`), and restrained deep jade active-state accents (`#2EC49A`).
+* **Grouped Structure:**
+  * **WORKSPACE:** Dashboard (`/`), Findings (`/findings` with `new_count` badge), Investigate (`/investigate`), Discovery (marked as automated background pipeline).
+  * **INTELLIGENCE:** Assets & Brands (`/brands`), Cases (`/campaigns`), Reports (`/reports`), Actions (`/findings?status=takedown_requested`).
+  * **ORGANIZATION:** Team (`/settings`), Alerts (`/notifications` with unread badge), Settings (`/settings`).
+* **Footer:** Displays current user identity (`{{ user.email }}`), role badge (`ADMIN`), and CSRF-protected logout control.
+* **Monochrome SVG Icons:** Unified iconography across all navigation destinations.
+* **Mobile Drawer:** Accessible responsive drawer with hamburger toggle button, backdrop overlay, and keyboard shortcut (`Escape` closes drawer).
+
+### Sticky Top Navigation Bar (`.app-topbar`)
+* **Workspace Context:** Displays active workspace scope.
+* **Global Search:** Instant keyboard-accessible finding search (`GET /findings?q=...`) with `⌘K` / `Ctrl+K` shortcut support.
+* **Quick Action Controls:** One-click shortcuts to instant URL investigation, alerts indicator, and user settings avatar.
+
+### Asymmetric Operational Dashboard Layout
+* **Header & Introduction:** Clear welcome section explaining ThreatDesk's digital risk protection capabilities in plain English.
+* **4 Compact Metric Cards:** Real-time metrics for High-Priority Threats (crimson), Awaiting Review (amber), Monitored Assets (jade), and Total Findings (ink).
+* **Primary Column (65% width):**
+  * Proportional Risk Distribution Bar visualizing severity breakdown with accessible legend links.
+  * Prioritized Findings Requiring Attention table with accessible severity badges and one-click "Review →" workflow.
+  * Real-time Case Activity Timeline tracking verified audit events.
+* **Supporting Column (35% width):**
+  * Instant Investigation paste box for on-demand link analysis.
+  * Perimeter Discovery quick scan button for registered brands.
+  * Real Response Efficiency benchmark metrics (Discovery → Confirmation, Resolution duration, Detection precision).
+  * Quick Security Glossary defining unfamiliar cybersecurity concepts in simple terms.
+
+### CSP Compliance & Code Quality
+* **Strict CSP Compliance:** Migrated client-side keybindings into `/static/app.js` with hash/static versioning, eliminating all inline `<script>` tags and inline style attributes.
+* **Hardening Rule:** All backend Python modules strictly maintain `< 300` lines of code (enforced by `tests/test_hardening.py`).
+* **Test Verification:** 184/184 tests pass (100% pass rate).
+
+---
+
+## 9. Conclusion
+
+The persistent sidebar and operational dashboard redesign elevates ThreatDesk into a cohesive, serious threat intelligence platform. The interface balances high-density operational utility for security professionals with plain-English clarity and accessibility for non-technical stakeholders.
+
