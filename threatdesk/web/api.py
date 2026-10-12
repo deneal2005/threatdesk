@@ -14,6 +14,7 @@ from threatdesk.linkdetect import detect
 from threatdesk.models import ApiKey, Brand, Finding, Job
 from threatdesk.safety import InvalidInput, defang, defang_text
 from threatdesk.security import allow, hash_api_key
+from threatdesk.serverless import pump_if_serverless
 from threatdesk.tenancy import get_owned, scoped
 
 router = APIRouter(prefix="/api/v1")
@@ -108,7 +109,8 @@ def api_investigate(body: InvestigateIn, org_id: int = Depends(api_org), db: Ses
 
 
 @router.get("/jobs/{job_id:int}")
-def get_job(job_id: int, org_id: int = Depends(api_org), db: Session = Depends(get_db)):
+def get_job(job_id: int, org_id: int = Depends(api_org), _run: None = Depends(pump_if_serverless),
+            db: Session = Depends(get_db)):
     j = get_owned(db, Job, job_id, org_id)
     return {"job_id": j.id, "type": j.type, "status": j.status, "attempts": j.attempts, "error": j.error,
             "result": j.result}
