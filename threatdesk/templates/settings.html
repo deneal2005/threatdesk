@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block title %}Settings · ThreatDesk{% endblock %}
+{% block content %}
+{% set admin = user.role == "admin" %}
+<header class="page-head">
+  <div class="titles">
+    <span class="eyebrow">Settings</span>
+    <h1>{{ org.name }}</h1>
+  </div>
+</header>
+{% if msg_override == "key" %}<p class="flash" role="status">API key created. Copy it now; it is shown once.</p>{% endif %}
+{% if test_result %}<p class="flash" role="status">{{ test_result }}</p>{% endif %}
+
+<section class="form-section">
+  <div class="about"><h3>Team</h3><p>Everyone here sees this organisation's brands and findings, and nothing else.</p></div>
+  <div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Email</th><th class="tight">Role</th><th class="tight hide-sm">Joined</th></tr></thead>
+        <tbody>{% for u in users %}<tr><td>{{ u.email }}{% if u.id == user.id %} <span class="faint">(you)</span>{% endif %}</td><td class="tight">{{ u.role|capitalize }}</td><td class="tight faint hide-sm">{{ u.created|dt }}</td></tr>{% endfor %}</tbody>
+      </table>
+    </div>
+    {% if admin %}
+    <details class="section-gap">
+      <summary class="linklike">Add a teammate</summary>
+      <form class="sheet pad section-gap" method="post" action="/settings/users">
+        {{ m.csrf() }}
+        <div class="cols-2">
+          <div class="field"><label for="t-email">Email</label><input id="t-email" name="email" type="email" required></div>
+          <div class="field"><label for="t-pw">Temporary password</label><input id="t-pw" name="password" type="password" minlength="10" required autocomplete="new-password"><span class="hint">At least 10 characters. Share it privately.</span></div>
+        </div>
+        <fieldset class="field"><legend class="label">Role</legend><div class="choices">
+          <label class="choice"><input type="radio" name="role" value="analyst" checked><span>Analyst</span></label>
+          <label class="choice"><input type="radio" name="role" value="admin"><span>Admin</span></label></div></fieldset>
+        <button class="btn">Add teammate</button>
+      </form>
+    </details>
+    {% endif %}
+  </div>
+</section>
+
+<section class="form-section">
+  <div class="about"><h3>API keys</h3><p>For scripts and other tools: read findings and start investigations. Keys belong to the organisation.</p></div>
+  <div>
+    {% if new_key %}<div class="note key-once" role="status">Copy this key now; it is shown once:<br><code>{{ new_key }}</code></div>{% endif %}
+    {% if keys %}
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Key</th><th>Label</th><th class="hide-sm">Created</th><th class="tight">State</th>{% if admin %}<th class="tight"><span class="sr">Revoke</span></th>{% endif %}</tr></thead>
+        <tbody>{% for k in keys %}<tr><td class="mono">{{ k.prefix }}…</td><td>{{ k.label }}</td><td class="hide-sm faint">{{ k.created|dt }}</td>
+          <td class="tight">{{ "Revoked" if k.revoked else "Active" }}</td>
+          {% if admin %}<td class="tight">{% if not k.revoked %}<form method="post" action="/settings/api-keys/{{ k.id }}/revoke">{{ m.csrf() }}<button class="btn danger sm">Revoke</button></form>{% endif %}</td>{% endif %}</tr>{% endfor %}</tbody>
+      </table>
+    </div>
+    {% else %}<p class="small muted">No keys yet.</p>{% endif %}
+    {% if admin %}
+    <form class="inline-fields section-gap" method="post" action="/settings/api-keys">
+      {{ m.csrf() }}
+      <div class="field"><label for="k-label">Label <span class="opt">(what it's for)</span></label><input id="k-label" name="label" maxlength="80" placeholder="SIEM export" required></div>
+      <button class="btn quiet">Create API key</button>
+    </form>
+    {% endif %}
+  </div>
+</section>
+
+<section class="form-section">
+  <div class="about"><h3>Alerts</h3><p>New Medium and High findings for this organisation are sent here, and only here. Every finding also appears under Alerts in the app.</p></div>
+  <div>
+    <ul class="rows sheet">
+      <li><span class="source-state {{ 'ok' if webhooks else 'off' }}" aria-hidden="true"></span><span class="grow">Chat webhooks<span class="cell-sub mono">{{ webhooks|join(", ") or "none" }}</span></span></li>
+      <li><span class="source-state {{ 'ok' if org.alert_email else 'off' }}" aria-hidden="true"></span><span class="grow">Email<span class="cell-sub">{{ org.alert_email or "none" }}</span></span></li>
+    </ul>
+    {% if admin %}
+    <details class="section-gap">
+      <summary class="linklike">Change alert channels</summary>
+      <form class="sheet pad section-gap alert-form" method="post" action="/settings/alerts">
+        {{ m.csrf() }}
+        <div class="field"><label for="a-hooks">Webhook URLs <span class="opt">(comma-separated, up to 5)</span></label>
+          <input id="a-hooks" name="webhooks" placeholder="https://hooks.slack.com/services/…" maxlength="3100">
+          <span class="hint">Slack, Discord, Google Chat or Microsoft Teams. Saved URLs are never shown again; leave blank to keep them.</span></div>
+        {% if webhooks %}<label class="check"><input type="checkbox" name="clear_webhooks" value="1"> Remove the current webhooks</label>{% endif %}
+        <div class="field"><label for="a-email">Alert email <span class="opt">(optional)</span></label>
+          <input id="a-email" name="email" type="email" value="{{ org.alert_email or '' }}"></div>
+        <button class="btn">Save alert channels</button>
+      </form>
+    </details>
+    <form class="section-gap" method="post" action="/settings/alerts/test">{{ m.csrf() }}<button class="btn ghost sm" {% if not (webhooks or org.alert_email) %}disabled title="Add a webhook or an email first"{% endif %}>Send test alert</button></form>
+    {% endif %}
+  </div>
+</section>
+
+<section class="form-section">
+  <div class="about"><h3>Connected services</h3><p>Set on the server through environment variables. Values are never shown here.</p></div>
+  <div>
+    <ul class="rows sheet">
+      {% for name, env, on in integrations %}
+      <li><span class="source-state {{ 'ok' if on else 'off' }}" aria-hidden="true"></span>
+        <span class="grow">{{ name }}<span class="cell-sub mono">{{ env }}</span></span>
+        <span class="cs cs-{{ 'ran' if on else 'not_configured' }}">{{ "Connected" if on else "Not set up" }}</span></li>
+      {% endfor %}
+    </ul>
+  </div>
+</section>
+{% endblock %}

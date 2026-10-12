@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Report received · {{ brand.name }}{% endblock %}
+{% block plain_brand %}<span class="wordmark"><b>{{ brand.name }}</b></span>{% endblock %}
+{% block plain_nav %}<span class="small muted">Scam reporting</span>{% endblock %}
+{% block plain_width %}sheet-mid{% endblock %}
+{% block plain_foot %}Reports are handled by the {{ brand.name }} brand-protection team using ThreatDesk.{% endblock %}
+{% block content %}
+<div class="auth" role="status">
+  <span class="eyebrow">{{ brand.name }}<span class="sep">/</span>Reference R-{{ ref }}</span>
+  <h1>Report received</h1>
+  <p class="lede">Thank you. Our team will look into it. Keep the reference R-{{ ref }} if you contact us about it.</p>
+  <p class="note">We do not give an automatic verdict. If you shared an OTP, password or card details, contact your bank on its official number right away.</p>
+</div>
+{% endblock %}

@@ -80,7 +80,8 @@ def _load(org_id: int, payload: dict) -> dict | None:
         row = store.get_row(db, brand, payload["kind"], int(payload["asset_id"]))
         if row is None:
             return None
-        sites = [s for s in store.rows(db, brand, "website") if s.verified and s.active and s.id != row.id]
+        self_id = row.id if payload["kind"] == "website" else None      # ids are per table
+        sites = [s for s in store.rows(db, brand, "website") if s.verified and s.active and s.id != self_id]
         return {"snap": _snapshot(row, payload["kind"]),
                 "verified_domains": [s.domain for s in sites],
                 "verified_urls": [s.url for s in sites][:3]}

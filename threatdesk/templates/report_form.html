@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block title %}Report a scam · {{ brand.name }}{% endblock %}
+{% block plain_brand %}<span class="wordmark"><b>{{ brand.name }}</b></span>{% endblock %}
+{% block plain_nav %}<span class="small muted">Scam reporting</span>{% endblock %}
+{% block plain_width %}sheet-mid{% endblock %}
+{% block plain_foot %}Reports are handled by the {{ brand.name }} brand-protection team using ThreatDesk.{% endblock %}
+{% block content %}
+<div class="auth">
+  <h1>Report a scam using our name</h1>
+  <p class="lede">Got a suspicious message, website, app or account claiming to be {{ brand.name }}? Send it here and our team will look into it.</p>
+  <form class="auth-form" method="post" action="/report/{{ brand.report_token }}">
+    {{ m.csrf() }}
+    <div class="field"><label for="r-url">Suspicious link <span class="opt">(if you have one)</span></label>
+      <input id="r-url" name="url" value="{{ v.url or '' }}" placeholder="https://…" maxlength="2000" autocomplete="off"></div>
+    <div class="field"><label for="r-text">The message or what you saw <span class="opt">(paste it)</span></label>
+      <textarea id="r-text" name="text" rows="5" maxlength="5000" aria-describedby="r-hint">{{ v.text or '' }}</textarea>
+      <span class="hint" id="r-hint">Never include passwords, OTPs, PINs or card numbers.</span></div>
+    <div class="field"><label for="r-contact">Your email or phone <span class="opt">(only if you want a reply)</span></label>
+      <input id="r-contact" name="contact" value="{{ v.contact or '' }}" maxlength="200" autocomplete="email"></div>
+    <div class="hp" aria-hidden="true"><label for="r-website">Leave this empty</label><input id="r-website" name="website" tabindex="-1" autocomplete="off"></div>
+    <button class="btn lg full">Send report</button>
+  </form>
+</div>
+{% endblock %}

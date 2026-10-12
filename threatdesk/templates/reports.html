@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block title %}Reports · ThreatDesk{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div class="titles">
+    <span class="eyebrow">Reports</span>
+    <h1>Summaries and customer reports</h1>
+  </div>
+  <div class="actions"><a class="btn quiet" href="/reports/findings.csv">{{ m.icon("download") }}Export all findings</a></div>
+</header>
+<section>
+  <div class="section-head"><div><h2>Brand summaries</h2><span class="small muted">Printable</span></div></div>
+  {% if brands %}
+  <ul class="rows sheet">
+    {% for b in brands %}<li><a class="grow cell-main" href="/reports/brand/{{ b.id }}">{{ b.name }}</a><a class="small" href="/reports/findings.csv?brand_id={{ b.id }}">CSV</a></li>{% endfor %}
+  </ul>
+  {% else %}<p class="small muted">Add a brand to get a summary.</p>{% endif %}
+</section>
+<section class="section">
+  <div class="section-head"><h2>Customer reports</h2><span class="small muted">From each brand's public report link</span></div>
+  {% if intakes %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th class="tight">Ref</th><th>Link or message</th><th class="hide-sm">Brand</th><th class="hide-sm">Contact</th><th class="tight">Finding</th></tr></thead>
+      <tbody>
+      {% for r in intakes %}
+        <tr>
+          <td class="tight"><span class="mono">R-{{ r.id }}</span><span class="cell-sub" title="{{ r.created|dt }}">{{ r.created|ago }}</span></td>
+          <td>{% if r.url %}<span class="defanged">{{ r.url|defang }}</span>{% endif %}{% if r.text %}<span class="cell-sub clamp-2">{{ r.text|dfg }}</span>{% endif %}</td>
+          <td class="hide-sm">{{ names.get(r.brand_id, "-") }}</td>
+          <td class="hide-sm small">{{ r.reporter_contact or "-" }}</td>
+          <td class="tight">{% if r.finding_id %}<a href="/findings/{{ r.finding_id }}">Case {{ "%04d"|format(r.finding_id) }}</a>{% else %}<span class="small muted">Checking…</span>{% endif %}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty slim"><h3>No customer reports yet</h3><p>Share a brand's report link (on its brand page) so customers can tell you about scams they receive.</p></div>
+  {% endif %}
+</section>
+{% endblock %}

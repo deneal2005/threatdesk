@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block title %}{{ brand.name }} summary · ThreatDesk{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div class="titles">
+    <span class="eyebrow"><a href="/reports">Reports</a><span class="sep">/</span>Brand protection summary</span>
+    <h1>{{ brand.name }}</h1>
+  </div>
+  <div class="actions noprint">
+    <a class="btn ghost" href="/reports/findings.csv?brand_id={{ brand.id }}">{{ m.icon("download") }}CSV</a>
+    <span class="small faint">Print this page to save a PDF</span>
+  </div>
+</header>
+<div class="cols-3">
+  <div class="sheet pad"><span class="eyebrow">Findings in triage</span>
+    <div class="figures"><div><span class="lbl">Total<span class="sub">{{ s.customer }} from customer reports</span></span><span class="fig">{{ s.total }}</span></div></div></div>
+  <div class="sheet pad"><span class="eyebrow">Found → taken down</span>
+    <div class="figures"><div><span class="lbl">Average<span class="sub">n = {{ s.found_taken_n }}</span></span><span class="fig">{{ s.found_taken }}</span></div></div></div>
+  <div class="sheet pad"><span class="eyebrow">Confirmed → taken down</span>
+    <div class="figures"><div><span class="lbl">Average<span class="sub">n = {{ s.confirmed_taken_n }}</span></span><span class="fig">{{ s.confirmed_taken }}</span></div></div></div>
+</div>
+<div class="cols-3 section-gap">
+  {% for title, rows, fmt in (("By status", s.by_status, "status"), ("By severity", s.by_severity, ""), ("By kind", s.by_kind, "kind")) %}
+  <div class="sheet pad"><span class="eyebrow">{{ title }}</span>
+    <div class="figures">{% for k, n in rows %}<div><span class="lbl">{{ k|status if fmt == "status" else (k|kind if fmt == "kind" else k) }}</span><span class="fig">{{ n }}</span></div>{% else %}<div><span class="lbl muted">None yet</span></div>{% endfor %}</div></div>
+  {% endfor %}
+</div>
+<section class="section">
+  <div class="section-head"><h2>Open high-severity findings</h2></div>
+  {% if s.open_high %}
+  <div class="table-wrap"><table>
+    <thead><tr><th class="tight">Score</th><th>Finding</th><th>Status</th><th class="tight">First seen</th></tr></thead>
+    <tbody>{% for f in s.open_high %}<tr><td class="tight">{{ m.score(f) }}</td><td><a class="cell-main defanged" href="/findings/{{ f.id }}">{{ f.display_name|dfg }}</a><span class="cell-sub">{{ f.kind|kind }} · {{ f.verdict }}</span></td><td>{{ m.status(f.status) }}</td><td class="tight faint">{{ f.first_seen|dt }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="small muted">None open.</p>{% endif %}
+</section>
+<section class="section">
+  <div class="section-head"><h2>Top campaigns</h2></div>
+  {% if s.campaigns %}
+  <ul class="rows sheet">{% for c in s.campaigns %}<li><span class="grow">{{ c.label|dfg }}</span><span class="small faint">built {{ c.created|ago }}</span></li>{% endfor %}</ul>
+  {% else %}<p class="small muted">None yet. Campaigns are built from shared indicators on the <a href="/campaigns">Campaigns</a> page.</p>{% endif %}
+</section>
+{% endblock %}

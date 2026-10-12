@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block title %}Takedown packet · Case {{ "%04d"|format(f.id) }}{% endblock %}
+{% block content %}
+<p class="small noprint"><a href="/findings/{{ f.id }}">← Case {{ "%04d"|format(f.id) }}</a></p>
+<header class="page-head">
+  <div class="titles">
+    <span class="eyebrow">Takedown packet<span class="sep">/</span>Generated {{ generated|dt }}</span>
+    <h1 class="artifact">{{ f.display_name|dfg }}</h1>
+    {% if f.url %}<div class="defanged small">{{ f.url|defang }}</div>{% endif %}
+  </div>
+  <div class="actions noprint">
+    <a class="btn" href="/findings/{{ f.id }}/takedown.txt">{{ m.icon("download") }}Download as text</a>
+    <span class="small faint">or print to PDF</span>
+  </div>
+</header>
+<div class="split">
+  <div>
+    <section>
+      <div class="section-head"><h2>Send to</h2></div>
+      <p class="small muted">From RDAP data and your contacts.yaml only. Nothing is invented.</p>
+      {% if recipients %}
+      <div class="recipients">
+        {% for r in recipients %}
+        <div class="sheet pad recipient{% if r.missing %} missing{% endif %}">
+          <span class="eyebrow">{{ r.title }}</span>
+          {% if r.missing %}
+          <p class="small muted">No contact available{% if "RDAP" in r.title %} in the RDAP data{% else %}: add one to contacts.yaml{% endif %}. ThreatDesk never invents contacts.</p>
+          {% else %}
+          {% if r.name %}<p><strong>{{ r.name }}</strong></p>{% endif %}
+          {% if r.email %}<p class="mono small">{{ r.email }}</p>{% endif %}
+          {% if r.phone %}<p class="mono small faint">{{ r.phone }}</p>{% endif %}
+          {% if r.report_url %}<p class="small"><a href="{{ r.report_url }}" target="_blank" rel="noopener noreferrer">Report form</a></p>{% endif %}
+          {% if r.notes %}<p class="small muted">{{ r.notes }}</p>{% endif %}
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}<div class="empty slim"><h3>No recipient type for this kind of finding</h3><p>Use the evidence below with the platform's own report form.</p></div>{% endif %}
+    </section>
+
+    <section class="section">
+      <div class="section-head"><h2>Why this impersonates the brand</h2></div>
+      {% if signals %}
+      <div class="sheet"><ol class="ledger pad-x sev-{{ f.severity|lower }}-r">
+        {% for s in signals %}<li class="{{ 'neg' if s.points < 0 else 't' ~ ((loop.index0 % 4) + 1) }}"><span class="pts">{{ "%+d"|format(s.points) }}</span>
+          <div><div class="rule-name">{{ rules[s.code][1]|sentence if s.code in rules else s.code }}</div><div class="ev">{{ s.evidence|dfg }}</div></div></li>{% endfor %}
+      </ol></div>
+      {% else %}<p class="small muted">No rule fired. Describe what you saw in your own words.</p>{% endif %}
+    </section>
+
+    {% if chain %}
+    <section class="section">
+      <div class="section-head"><h2>Redirect chain</h2></div>
+      <ul class="rows sheet">{% for h in chain %}<li><span class="num small">{{ h.status }}</span><span class="grow defanged">{{ h.url|defang }}</span><span class="mono small faint">{{ h.ip }}</span></li>{% endfor %}</ul>
+    </section>
+    {% endif %}
+
+    <section class="section">
+      <div class="section-head"><h2>Evidence captures</h2><span class="small muted">Append-only, hashed when taken</span></div>
+      <div class="table-wrap"><table>
+        <thead><tr><th class="tight">Capture</th><th>What</th><th class="hide-sm">Captured</th><th>SHA-256</th></tr></thead>
+        <tbody>{% for e in evidence %}<tr><td class="tight num">#{{ e.id }}</td><td>{{ e.kind|evidence_kind }}</td><td class="hide-sm nowrap">{{ e.captured_at|dt }}</td><td class="mono small">{{ e.sha256 }}</td></tr>{% endfor %}</tbody>
+      </table></div>
+    </section>
+  </div>
+
+  <aside>
+    {% if rdap %}
+    <div class="sheet pad"><span class="eyebrow">Registration</span>
+      <dl class="kv small"><dt>Registered</dt><dd>{{ (rdap.registered or "-")[:10] }}</dd><dt>Registrar</dt><dd>{{ rdap.registrar or "-" }}</dd>
+        <dt>Registrant</dt><dd>{{ "Redacted" if rdap.redacted else (rdap.registrant or "-") }}</dd>{% if rdap.nameservers %}<dt>Name servers</dt><dd class="mono">{{ rdap.nameservers|join(", ")|dfg }}</dd>{% endif %}</dl></div>
+    {% endif %}
+    {% if tls %}
+    <div class="sheet pad"><span class="eyebrow">Certificate</span>
+      <dl class="kv small"><dt>Issuer</dt><dd>{{ tls.issuer or "-" }}</dd><dt>Valid</dt><dd>{{ (tls.not_before or "")[:10] }} → {{ (tls.not_after or "")[:10] }}</dd>
+        <dt>Verified</dt><dd>{{ "Yes" if tls.verified else "No: " ~ (tls.error or "") }}</dd>{% if tls.san %}<dt>Names</dt><dd class="mono">{{ tls.san[:6]|join(", ")|dfg }}</dd>{% endif %}</dl></div>
+    {% endif %}
+    {% if rdap_ip %}
+    <div class="sheet pad"><span class="eyebrow">Hosting</span>
+      <dl class="kv small"><dt>IP</dt><dd class="mono">{{ rdap_ip.ip }}</dd><dt>Network</dt><dd>{{ rdap_ip.org or rdap_ip.name or "-" }}</dd>{% if rdap_ip.country %}<dt>Country</dt><dd>{{ rdap_ip.country }}</dd>{% endif %}</dl></div>
+    {% endif %}
+    {% if indicators %}
+    <div class="sheet pad"><span class="eyebrow">Indicators</span>
+      <div class="chipline section-gap">{% for t, vs in indicators.items() %}{% for v in vs[:10] %}<span class="tagline" title="{{ t|indicator }}">{{ v|dfg }}</span>{% endfor %}{% endfor %}</div></div>
+    {% endif %}
+    {% if brand %}
+    <div class="sheet pad"><span class="eyebrow">Official {{ brand.name }} assets</span>
+      <dl class="kv small"><dt>Websites</dt><dd>{{ official.domains[:6]|join(", ") or "-" }}</dd>
+        {% for p, hs in official.handles.items() %}<dt>{{ platforms[p][0] if p in platforms else p }}</dt><dd>{{ hs[:4]|join(", ") }}</dd>{% endfor %}
+        {% for p, ids in official.apps.items() %}<dt>{{ "Android" if p == "android" else "iOS" }} apps</dt><dd class="mono">{{ ids[:4]|join(", ") }}</dd>{% endfor %}</dl></div>
+    {% endif %}
+    <form class="sheet pad noprint" method="post" action="/findings/{{ f.id }}/takedown/sent">
+      {{ m.csrf() }}
+      <h3 class="panel-title">Log a request you sent</h3>
+      <div class="field"><label for="t-to">Recipient</label><input id="t-to" name="recipient" maxlength="200" required placeholder="abuse@registrar.example"></div>
+      <div class="field"><label for="t-note">Note <span class="opt">(optional)</span></label><textarea id="t-note" name="note" maxlength="2000" rows="2"></textarea></div>
+      <button class="btn quiet">Log request</button>
+    </form>
+  </aside>
+</div>
+{% endblock %}

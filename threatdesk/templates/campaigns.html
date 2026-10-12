@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block title %}Campaigns · ThreatDesk{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div class="titles">
+    <span class="eyebrow">Campaigns</span>
+    <h1>Who is behind what</h1>
+    <p class="lede">Findings are grouped only when they share something real: a phone number, UPI ID, email, developer, handle, copied icon, server, or a registrar and registration date.</p>
+  </div>
+  <div class="actions">
+    <form method="post" action="/campaigns/rebuild">{{ m.csrf() }}<button class="btn">{{ m.icon("campaigns") }}Rebuild campaigns</button></form>
+  </div>
+</header>
+{% if info %}
+<p class="flash" role="status">Found {{ info.campaigns }} campaign{{ "s" if info.campaigns != 1 }} across {{ info.findings }} open finding{{ "s" if info.findings != 1 }} ({{ info.considered }} considered).</p>
+{% if info.skipped %}
+<details class="sheet pad section-gap">
+  <summary class="linklike small">{{ info.skipped|length }} shared value{{ "s" if info.skipped|length != 1 }} ignored as too common to mean one operator</summary>
+  <ul class="rows compact">{% for s in info.skipped %}<li><span class="tagline">{{ s.type }}</span><span class="grow mono small">{{ s.value|dfg }}</span><span class="small muted">{{ s.reason }}</span></li>{% endfor %}</ul>
+</details>
+{% endif %}
+{% endif %}
+{% if camps %}
+{% for c in camps %}
+<section class="sheet campaign">
+  <div class="campaign-head">
+    <div>
+      <span class="eyebrow">{{ members.get(c.id, [])|length }} findings{% if c.brand_id %}<span class="sep">/</span>{{ names.get(c.brand_id, "") }}{% endif %}</span>
+      <h2>Linked by {{ c.shared[0].type }} <span class="mono">{{ c.shared[0].value|dfg }}</span></h2>
+    </div>
+    <span class="small faint" title="{{ c.created|dt }}">built {{ c.created|ago }}</span>
+  </div>
+  <div class="campaign-body">
+    <ul class="rows">
+      {% for f in members.get(c.id, []) %}
+      <li>{{ m.score(f) }}<span class="grow"><a class="cell-main defanged" href="/findings/{{ f.id }}">{{ f.display_name|dfg }}</a><span class="cell-sub">{{ f.kind|kind }} · {{ f.verdict }}</span></span>{{ m.status(f.status) }}</li>
+      {% endfor %}
+    </ul>
+    <div class="shared">
+      <span class="eyebrow">What they share</span>
+      <ul class="rows compact">{% for s in c.shared[:8] %}<li><span class="tagline">{{ s.type }}</span><span class="grow mono small">{{ s.value|dfg }}</span><span class="small faint">{{ s.findings|length }}</span></li>{% endfor %}</ul>
+    </div>
+  </div>
+</section>
+{% endfor %}
+{% else %}
+<div class="empty">
+  <h3>No campaigns</h3>
+  <p>No open findings share a real indicator yet. Rebuild after new scans or investigations.</p>
+</div>
+{% endif %}
+{% endblock %}

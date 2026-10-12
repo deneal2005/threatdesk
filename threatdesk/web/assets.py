@@ -56,7 +56,8 @@ def _parse(kind: str, form: dict) -> list[dict]:
 
 def checking_useful(db: Session, brand: Brand, kind: str, row) -> bool:
     """Check a new entry automatically only when it can succeed without the owner doing anything first."""
-    sites = [s for s in store.rows(db, brand, "website") if s.verified and s.active and s.id != row.id]
+    self_id = row.id if kind == "website" else None                  # ids are per table
+    sites = [s for s in store.rows(db, brand, "website") if s.verified and s.active and s.id != self_id]
     if kind == "website":
         return any(row.domain == s.domain or row.domain.endswith("." + s.domain) for s in sites)
     return bool(sites)
