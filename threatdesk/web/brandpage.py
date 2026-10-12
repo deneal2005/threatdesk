@@ -5,6 +5,7 @@ from fastapi import Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from threatdesk import scanrun
 from threatdesk.assets import store
 from threatdesk.assets.forms import APP_PLATFORMS, WEBSITE_KINDS
 from threatdesk.assets.platforms import PLATFORMS
@@ -92,6 +93,79 @@ def tab_view(rows: list, kind: str, params) -> dict:
             "unverified": sum(1 for r in rows if r.active and r.verification_status == "unverified")}
 
 
+SKIPPABLE = {"social": "We have no social accounts", "apps": "We have no mobile apps",
+             "logo": "We'd rather not upload a logo"}
+
+
+def setup_steps(brand: Brand, primary, accounts: list, apps: list, progress) -> dict:
+    """What is left to set up, each step with its state and the one action that moves it forward.
+    None of it gates scanning; each step only makes detection more precise."""
+    bid = brand.id
+    skipped = set((brand.detection or {}).get("setup_skipped") or [])
+    steps = []
+    if primary is None:
+        steps.append({"key": "website", "state": "todo", "title": "Add your main website",
+                      "why": "Scans never flag what you list, and your accounts and apps are verified through it.",
+                      "detail": "No website listed yet.",
+                      "href": f"/brands/{bid}?tab=websites&add=1", "label": "Add website"})
+    elif primary.verification_status == "pending":
+        steps.append({"key": "website", "state": "pending", "title": "Verify your main website",
+                      "why": "Proves the site is yours, so accounts and apps can be verified through it.",
+                      "detail": f"Checking {primary.url_key} now…", "href": f"/brands/{bid}?tab=websites"})
+    elif not primary.verified:
+        steps.append({"key": "website", "state": "todo", "title": "Verify your main website",
+                      "why": "Proves the site is yours, so accounts and apps can be verified through it.",
+                      "detail": f"{primary.url_key} is listed but not verified. Add the DNS TXT record or meta tag "
+                                f"shown on the Websites tab, then check.",
+                      "post": f"/brands/{bid}/websites/{primary.id}/check", "label": "Check now",
+                      "href": f"/brands/{bid}?tab=websites#website-{primary.id}", "href_label": "How to verify"})
+    else:
+        steps.append({"key": "website", "state": "done", "title": "Main website verified",
+                      "detail": f"{primary.url_key} · {METHODS.get(primary.verification_method or '', 'verified')}",
+                      "href": f"/brands/{bid}?tab=websites"})
+    for key, rows, noun, tab in (("social", accounts, "social account", "social"), ("apps", apps, "app", "apps")):
+        title = "List your official social accounts" if key == "social" else "List your mobile apps"
+        why = ("Look-alikes of your real accounts stand out, and your own regional accounts are never flagged."
+               if key == "social" else "Copycat apps in the stores stand out against your real listings.")
+        if rows:
+            verified = sum(1 for r in rows if r.verified)
+            steps.append({"key": key, "state": "done", "title": title,
+                          "detail": f"{len(rows)} {noun}{'s' if len(rows) != 1 else ''} listed · {verified} verified. "
+                                    "Unverified ones are checked on every Scan now.",
+                          "href": f"/brands/{bid}?tab={tab}"})
+        elif key in skipped:
+            steps.append({"key": key, "state": "skipped", "title": title, "detail": SKIPPABLE[key] + ".",
+                          "href": f"/brands/{bid}?tab={tab}&add=1", "href_label": "Add one after all"})
+        else:
+            steps.append({"key": key, "state": "todo", "title": title, "why": why, "detail": f"No {noun}s listed.",
+                          "href": f"/brands/{bid}?tab={tab}&add=1", "label": f"Add {noun}",
+                          "skip": SKIPPABLE[key]})
+    if brand.logo_phash:
+        steps.append({"key": "logo", "state": "done", "title": "Logo uploaded",
+                      "detail": "Used to spot apps and profiles that copy your icon.", "href": f"/brands/{bid}/edit"})
+    elif "logo" in skipped:
+        steps.append({"key": "logo", "state": "skipped", "title": "Upload your logo", "detail": "Skipped.",
+                      "href": f"/brands/{bid}/edit", "href_label": "Upload one after all"})
+    else:
+        steps.append({"key": "logo", "state": "todo", "title": "Upload your logo",
+                      "why": "Spots apps and profiles that copy your icon.", "detail": "No logo yet.",
+                      "href": f"/brands/{bid}/edit", "label": "Upload logo", "skip": SKIPPABLE["logo"]})
+    if progress is None:
+        steps.append({"key": "scan", "state": "todo", "title": "Run your first scan",
+                      "why": "Finds look-alikes, investigates each one and checks your unverified assets.",
+                      "detail": "Not scanned yet. You can scan before finishing the steps above.",
+                      "post": f"/brands/{bid}/scan", "label": "Scan now"})
+    elif progress.active:
+        steps.append({"key": "scan", "state": "pending", "title": "First scan", "detail": "Running now: progress below.",
+                      "href": f"#scan-progress-{bid}"})
+    else:
+        steps.append({"key": "scan", "state": "done", "title": "Scanned",
+                      "detail": f"Scans repeat every {brand.scan_interval_hours} h." if brand.scan_interval_hours
+                      else "Automatic scans are off; use Scan now.", "href": f"#scan-progress-{bid}"})
+    finished = sum(1 for s in steps if s["state"] in ("done", "skipped"))
+    return {"steps": steps, "done": finished, "total": len(steps), "complete": finished == len(steps)}
+
+
 def _scans(db: Session, brand: Brand) -> list[Job]:
     jobs = db.scalars(select(Job).where(Job.org_id == brand.org_id, Job.type == "scan")
                       .order_by(Job.id.desc()).limit(40)).all()
@@ -114,25 +188,14 @@ def brand_page(request: Request, user: User, db: Session, brand: Brand, tab: str
               "allow": len(whitelist)}
     sites, accounts, apps = data["website"], data["social"], data["app"]
     primary = next((s for s in sites if s.is_primary), sites[0] if sites else None)
-    setup = []
-    if not (primary and primary.verified):
-        setup.append(("Verify your main website", "Proves you control it, and lets ThreatDesk confirm your accounts "
-                      "and apps through it.", f"/brands/{brand.id}?tab=websites"))
-    if not accounts:
-        setup.append(("Add your social accounts", "Every official profile, so look-alikes of them stand out.",
-                      f"/brands/{brand.id}?tab=social&add=1"))
-    if not apps:
-        setup.append(("Add your mobile apps", "So copycat apps in the stores stand out.",
-                      f"/brands/{brand.id}?tab=apps&add=1"))
-    if not brand.logo_phash:
-        setup.append(("Upload your logo", "Used to spot apps and profiles that copy your icon.",
-                      f"/brands/{brand.id}/edit"))
     scans = _scans(db, brand)
+    progress = scanrun.progress(db, brand, scans[0]) if scans else None
+    setup = setup_steps(brand, primary, accounts, apps, progress)
     params = request.query_params
     ctx = {
         "brand": brand, "tab": tab, "tabs": TABS, "counts": counts, "primary": primary, "data": data,
         "whitelist": whitelist, "whitelist_types": WHITELIST_TYPES, "setup": setup, "scans": scans,
-        "scan_running": bool(scans and scans[0].status in ("queued", "running")),
+        "p": progress, "scan_running": bool(progress and progress.active),
         "report_link": report_url(request, brand), "website_kinds": WEBSITE_KINDS, "app_platforms": APP_PLATFORMS,
         "status_filters": STATUS_FILTERS, "methods": METHODS, "added": params.get("added"),
         "add_open": bool(params.get("add")), "last_platform": params.get("platform", ""),

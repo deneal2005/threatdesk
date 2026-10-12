@@ -44,7 +44,7 @@ flowchart TB
     end
     LA["lookalike.py (shared):<br/>normalise, confusables/leet, affix stripping,<br/>Damerau-Levenshtein, containment"]
     OWN["checks/ownership.py: brand-protection registrar,<br/>registrant, shared nameservers"]
-    SIG["Signals (scoring.RULES, 60 rules)<br/>each with evidence text"]
+    SIG["Signals (scoring.RULES, 63 rules)<br/>each with evidence text"]
     AS2["scoring.assess(): sum → 0-100,<br/>category breakdown,<br/>identity-only cap for accounts/apps"]
     PUB["Play publisher check:<br/>developer account id vs official apps"]
   end
@@ -96,7 +96,9 @@ flowchart TB
 | Risk assessment | `scoring.py`, `riskview.py` | Rules carry fixed points and a category. `assess()` caps accounts/apps whose only evidence is name similarity at 35. `riskview` adds the classification and evidence confidence. |
 | Exclusion | `investigator.exclusion`, `checks/apps.play_publisher`, `checks/ownership.py`, `reconcile.py` | Official assets (listed, or on the built-in list of a well-known brand the profile matches) and allow-list entries score 0. Defensive registrations get counter-evidence and are classified *Likely brand-owned*; scans don't open findings for them. On Google Play the developer *account id* must match an official app (names are not verified). Findings covered by later profile changes are closed automatically (never one an analyst confirmed). |
 | Persistence | `persistence.py`, `models/*` | Findings are unique per org + brand + dedupe key; re-investigation updates the row, evidence is appended. |
-| Orchestration | `jobs.py`, `worker.py`, `monitoring.py` | Database job queue with atomic claims, retry with backoff, outage detection (retry instead of saving an empty finding), scheduled scans, retention of background jobs (`JOB_RETENTION_DAYS`). |
+| Orchestration | `jobs.py`, `worker.py`, `monitoring.py`, `scanrun.py` | Database job queue with atomic claims, retry with backoff, outage detection (retry instead of saving an empty finding), scheduled scans, retention of background jobs (`JOB_RETENTION_DAYS`). *Scan now* (`scanrun.start`) queues discovery plus a check of every unverified official asset; every job it causes carries `scan_id`, and `scanrun.progress` reads their real states for the live progress panel (one scan per brand at a time). |
+| Affiliation | `affiliation.py` | For accounts named like the brand: profiles linked from the brand's own home pages (fetched through the SSRF guard, cached 6 h) are affiliated and dropped by scans; *brand + region/language/product* names (YouTube India) are *Regional or product name, unconfirmed*, or *Likely regional or affiliated* with a verified badge, long history or a profile link that resolves to an official domain. Scam text, contact bait, look-alike links or a brand-new account always win. |
+| Deletion | `branddelete.py` | Deleting a brand (admins, typed confirmation) removes its assets, allow list, findings and everything attached to them, customer reports, campaigns and jobs, scoped to that org and brand. Jobs already running find the brand gone and save nothing. |
 | Presentation | `web/*`, `templates/*` | Server-rendered, strict CSP, CSRF on every POST, HTMX polling only. |
 
 ## Scoring and classification
@@ -110,12 +112,15 @@ flowchart TB
   and neither does absence of data (no archive history, redacted registrant, no TLS). A different publisher is never
   a signal on its own.
 * **Counter-evidence:** redirects to an official site, a corporate brand-protection registrar, a registrant matching
-  the brand, private nameservers shared with an official domain, an established or platform-verified account.
+  the brand, private nameservers shared with an official domain, an established or platform-verified account, a link
+  from an official website, regional/product naming, a profile link resolving to an official domain.
+* **Third-party trust report** (optional, `checks/apify_trust.py`, `APIFY_WEBSITE_TRUST=true`): shown as labelled
+  context on brand-claiming websites, adds no points and does not count towards check coverage.
 * **Severity:** High at 70, Medium at 40. Verdicts never say "safe": the lowest are *No strong signals* and
   *Insufficient data*.
 * **Classification** (`riskview.classify`): *Verified threat* (analyst confirmed), *Malicious indicators*
-  (reputation hit, or credential phishing while posing as the brand), *Suspicious* (score 40+), *Look-alike,
-  unconfirmed* (name only), *No strong signals*, *Insufficient data*, *False positive*, *Official asset*.
+  (reputation hit, or credential phishing while posing as the brand), *Suspicious* (score 40+), *Likely regional or
+  affiliated account*, *Regional or product name, unconfirmed*, *Look-alike, unconfirmed* (name only), *No strong signals*, *Insufficient data*, *False positive*, *Official asset*.
 * **Confidence:** High with two or more independent kinds of evidence (or a reputation hit), Medium with one, Low with
   name-only evidence, too few checks, or user-supplied / search-result data.
 

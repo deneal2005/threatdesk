@@ -103,6 +103,10 @@ async def check_apify_profile(ctx: Ctx):
                          prof["bio"] or "", prof["created"],
                          prof["followers"] if isinstance(prof["followers"], int) else None,
                          verified=bool(prof.get("verified")), links=prof["links"])
+    from threatdesk.checks.social import _affiliation
+    ctx.facts.pop("affiliation", None)             # the profile reader sees more (badge, links): judge again
+    det.update(await _affiliation(ctx, platform, prof["handle"] or handle, prof["name"] or "", prof["bio"] or "",
+                                  prof["links"], bool(prof.get("verified"))))
     if platform == "instagram" and prof.get("joined_recently") and not prof["created"] and \
             ("similar_to" in det or det.get("name_similar")):
         ctx.card.add("account_lt_90d", "Instagram shows 'joined recently' on a profile that resembles the brand")

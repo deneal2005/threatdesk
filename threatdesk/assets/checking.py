@@ -31,24 +31,31 @@ def _live_jobs(db: Session, brand: Brand) -> set[tuple[str, int]]:
     return {((j.payload or {}).get("kind"), (j.payload or {}).get("asset_id")) for j in rows}
 
 
-def enqueue_check(db: Session, brand: Brand, kind: str, row, user_id: int | None, paid: bool) -> bool:
-    """Queue one verification (skipped when one is already queued or running for this asset)."""
-    if (kind, row.id) in _live_jobs(db, brand):
+def enqueue_check(db: Session, brand: Brand, kind: str, row, user_id: int | None, paid: bool,
+                  scan_id: int | None = None, live: set | None = None) -> bool:
+    """Queue one verification (skipped when one is already queued or running for this asset).
+    scan_id ties it to the scan that queued it, so the scan's progress can count it."""
+    if (kind, row.id) in (live if live is not None else _live_jobs(db, brand)):
         return False
     prev, prev_method = row.verification_status, row.verification_method
     if prev == "pending":
         prev, prev_method = "unverified", None
     row.verification_status = "pending"
-    jobs.enqueue(db, JOB, {"kind": kind, "asset_id": row.id, "brand_id": brand.id, "paid": paid, "prev": prev,
-                           "prev_method": prev_method}, brand.org_id, created_by=user_id, max_attempts=1)
+    payload = {"kind": kind, "asset_id": row.id, "brand_id": brand.id, "paid": paid, "prev": prev,
+               "prev_method": prev_method}
+    if scan_id:
+        payload["scan_id"] = scan_id
+    jobs.enqueue(db, JOB, payload, brand.org_id, created_by=user_id, max_attempts=1)
     db.flush()
     return True
 
 
-def enqueue_all(db: Session, brand: Brand, kind: str, user_id: int | None) -> int:
+def enqueue_all(db: Session, brand: Brand, kind: str, user_id: int | None, scan_id: int | None = None) -> int:
     """Check every active unverified entry (never the paid profile readers)."""
     todo = [r for r in store.rows(db, brand, kind) if r.active and r.verification_status == "unverified"]
-    return sum(enqueue_check(db, brand, kind, r, user_id, paid=False) for r in todo[:BULK_LIMIT])
+    live = _live_jobs(db, brand)
+    return sum(enqueue_check(db, brand, kind, r, user_id, paid=False, scan_id=scan_id, live=live)
+               for r in todo[:BULK_LIMIT])
 
 
 def heal_stuck(db: Session, brand: Brand, data: dict[str, list]) -> bool:

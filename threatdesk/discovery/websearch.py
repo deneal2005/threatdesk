@@ -9,6 +9,7 @@ from dataclasses import dataclass
 
 import httpx
 
+from threatdesk import affiliation
 from threatdesk.brands import BrandContext
 from threatdesk.checks.base import EvidenceItem, get_json
 from threatdesk.checks.social import social_signals
@@ -72,7 +73,8 @@ def queries(brand: BrandContext) -> list[str]:
     return [f'site:{s} "{brand.name}" (official OR support OR care OR helpline)' for s in SITES]
 
 
-def hit_to_report(hit: Hit, brand: BrandContext, provider: str) -> Report | None:
+def hit_to_report(hit: Hit, brand: BrandContext, provider: str,
+                  official_profiles: set[tuple[str, str]] = frozenset()) -> Report | None:
     try:
         link = detect(hit.url)
     except InvalidInput:
@@ -83,6 +85,11 @@ def hit_to_report(hit: Hit, brand: BrandContext, provider: str) -> Report | None
     det = social_signals(card, brand, link.platform, link.ident, hit.title, hit.snippet, prefix=PREFIX)
     if not card.signals:
         return None
+    linked = (link.platform, link.ident.lower()) in official_profiles
+    aff = affiliation.apply(card, brand, link.platform, link.ident, hit.title, linked_from_site=linked, prefix=PREFIX)
+    if aff["status"] == "affiliated":           # the brand's own website links to it: not a lead
+        return None
+    det["affiliation"] = aff
     score = assess(card.signals, "social_profile").score
     detail = {"provider": provider, "title": hit.title[:200], "snippet": hit.snippet[:500], **det}
     return Report(url=link.url, kind="social_profile",
@@ -101,8 +108,12 @@ async def src_websearch(client: httpx.AsyncClient, brand: BrandContext, settings
     if not provs:
         return "not configured (GOOGLE_CSE_KEY+GOOGLE_CSE_CX or BRAVE_API_KEY)", []
     reports: dict[str, Report] = {}
-    hits = 0
+    hits = affiliated = 0
     errors = []
+    try:
+        official = await affiliation.official_site_profiles(client, brand)
+    except Exception:  # noqa: BLE001 - without it every hit is simply judged on its own
+        official = set()
     for p in provs:
         for q in queries(brand):
             try:
@@ -112,9 +123,20 @@ async def src_websearch(client: httpx.AsyncClient, brand: BrandContext, settings
                 break
             hits += len(found)
             for h in found:
-                r = hit_to_report(h, brand, p.name)
+                r = hit_to_report(h, brand, p.name, official)
+                if r is None and _linked(h, official):
+                    affiliated += 1
                 if r and r.dedupe_key not in reports:
                     reports[r.dedupe_key] = r
     if errors and not hits:
         return f"failed: {errors[0]}", []
-    return f"ok: {hits} results, {len(reports)} look-alike profiles", list(reports.values())
+    extra = f", {affiliated} linked from your website (skipped)" if affiliated else ""
+    return f"ok: {hits} results, {len(reports)} look-alike profiles{extra}", list(reports.values())
+
+
+def _linked(hit: Hit, official: set[tuple[str, str]]) -> bool:
+    try:
+        link = detect(hit.url)
+    except InvalidInput:
+        return False
+    return bool(link.ident) and (link.platform, link.ident.lower()) in official

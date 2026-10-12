@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% import "macros.html" as m with context %}
+{% block title %}Delete {{ brand.name }} · ThreatDesk{% endblock %}
+{% block content %}
+<header class="page-head">
+  <div class="titles">
+    <span class="eyebrow"><a href="/brands">Brands</a><span class="sep">/</span><a href="/brands/{{ brand.id }}">{{ brand.name }}</a></span>
+    <h1>Delete {{ brand.name }}?</h1>
+  </div>
+</header>
+<section class="sheet pad danger-zone narrow">
+  <p>This permanently removes the brand and everything ThreatDesk recorded for it. It can't be undone.</p>
+  <ul class="kv-list">
+    <li><span class="num bold">{{ impact.findings }}</span> finding{{ "s" if impact.findings != 1 }}, with their evidence, case history and alerts</li>
+    <li><span class="num bold">{{ impact.assets }}</span> official asset{{ "s" if impact.assets != 1 }} (websites, social accounts and apps), and the allow list</li>
+    <li><span class="num bold">{{ impact.reports }}</span> customer report{{ "s" if impact.reports != 1 }} from the brand's report link (the link stops working)</li>
+    <li><span class="num bold">{{ impact.scans }}</span> scan{{ "s" if impact.scans != 1 }} in the history, and any scan still running</li>
+  </ul>
+  <p class="small muted">Other brands, their findings and shared organisation settings are not affected. Export what you need first: <a href="/reports/brand/{{ brand.id }}">brand summary</a> or <a href="/reports/findings.csv?brand_id={{ brand.id }}">findings CSV</a>.</p>
+  <form method="post" action="/brands/{{ brand.id }}/delete" class="section-gap">
+    {{ m.csrf() }}
+    <div class="field"><label for="confirm_name">Type <strong>{{ brand.name }}</strong> to confirm</label>
+      <input id="confirm_name" name="confirm_name" type="text" autocomplete="off" spellcheck="false" required></div>
+    <div class="form-actions">
+      <a class="btn ghost" href="/brands/{{ brand.id }}">Cancel</a>
+      <button class="btn danger">Delete brand permanently</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

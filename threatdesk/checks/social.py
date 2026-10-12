@@ -23,6 +23,9 @@ LOGIN_WALL = re.compile(r"^(instagram|facebook|x|tiktok|log ?in|login • instag
                         r"page not found|sorry, this page isn't available\.?)$", re.I)
 
 
+# Link wrappers the platform itself adds to every link in a profile (X rewrites all links to t.co). They say nothing
+# about the account, so they are not "links hidden behind a shortener".
+PLATFORM_WRAPPERS = {"x": ("t.co",), "linkedin": ("lnkd.in",), "youtube": ("youtu.be",)}
 BARE_DOMAIN_RE = re.compile(r"(?<![@\w.-])(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,24}\b", re.I)
 
 
@@ -46,6 +49,14 @@ def _bio_links(card: Scorecard, brand: BrandContext, bio: str, links, prefix: st
                                            f"({hit[0].explain()})")
             found.append(host)
     return found
+
+
+def _unwrap(platform: str, text: str) -> str:
+    hosts = PLATFORM_WRAPPERS.get(platform)
+    if not hosts:
+        return text
+    rx = "|".join(re.escape(h) for h in hosts)
+    return re.sub(rf"(?:https?://)?(?:www\.)?(?:{rx})/[\w-]+", " ", text, flags=re.I)
 
 
 def social_signals(card: Scorecard, brand: BrandContext, platform: str, handle: str, name: str, bio: str,
@@ -83,7 +94,7 @@ def social_signals(card: Scorecard, brand: BrandContext, platform: str, handle: 
     elif days is not None and days < 365:
         card.add("account_lt_365d", f"{prefix}account created {born.date().isoformat()}")
     scratch = Scorecard()                       # text rules on name + bio, evidence prefixed (USER-SUPPLIED...)
-    found = text_signals(scratch, f"{name or ''}\n{bio or ''}", brand, brand_mentions=False)
+    found = text_signals(scratch, _unwrap(platform, f"{name or ''}\n{bio or ''}"), brand, brand_mentions=False)
     for s in scratch.signals:
         card.add(s.code, f"{prefix}{s.evidence}")
     out["text_signals"] = list(found)
@@ -97,6 +108,25 @@ def social_signals(card: Scorecard, brand: BrandContext, platform: str, handle: 
     if days is not None and days >= 730 and followers is not None and followers >= 10_000:
         card.add("established_account", f"{prefix}account since {born.date().isoformat()} with {followers:,} followers")
     return out
+
+
+async def _affiliation(ctx: Ctx, platform: str, handle: str, name: str, bio: str = "", links=(),
+                       verified: bool | None = None) -> dict:
+    """Evidence that a brand-named account is the brand's own (linked from its site, regional naming...).
+    Runs once per investigation: the public preview and the profile reader may both read the same account."""
+    from threatdesk import affiliation
+    if "affiliation" in ctx.facts or det_official(ctx, platform, handle):
+        return {}
+    found = [*links, *extract(bio or "")["url"], *[m.group(0) for m in BARE_DOMAIN_RE.finditer(bio or "")]]
+    out = await affiliation.assess(ctx.client, ctx.card, ctx.brand, platform, handle, name, found, verified)
+    if out:
+        ctx.facts["affiliation"] = out
+        return {"affiliation": out}
+    return {}
+
+
+def det_official(ctx: Ctx, platform: str, handle: str) -> bool:
+    return ctx.brand.is_official_asset(platform, (handle or "").lstrip("@").lower())
 
 
 async def check_youtube(ctx: Ctx):
@@ -137,6 +167,7 @@ async def check_youtube(ctx: Ctx):
     else:
         det = social_signals(ctx.card, ctx.brand, "youtube", handle, sn.get("title", ""), sn.get("description", ""),
                              sn.get("publishedAt"), subs)
+        det.update(await _affiliation(ctx, "youtube", handle, sn.get("title", ""), sn.get("description", "")))
     ctx.indicator("handle", handle.lower())
     ctx.evidence.append(EvidenceItem("youtube_channel", {"id": ch.get("id"), "snippet": sn, "statistics": st}))
     return ctx.ran("youtube_channel", channel_id=ch.get("id"), title=sn.get("title"), handle=f"@{handle}",
@@ -176,6 +207,7 @@ async def check_telegram(ctx: Ctx):
         return ctx.ran("telegram_page", exists=False, heuristic=True, handle=handle,
                        note="No public page: the handle may not exist (heuristic, unverified)")
     det = social_signals(ctx.card, ctx.brand, "telegram", handle, data["title"], data["description"])
+    det.update(await _affiliation(ctx, "telegram", handle, data["title"], data["description"]))
     ctx.indicator("handle", handle.lower())
     ctx.evidence.append(EvidenceItem("telegram_page", {"handle": handle, **data}))
     return ctx.ran("telegram_page", exists=True, heuristic=True, handle=handle, title=data["title"],
@@ -193,6 +225,7 @@ async def check_bluesky(ctx: Ctx):
     short = handle[: -len(".bsky.social")] if handle.endswith(".bsky.social") else handle
     det = social_signals(ctx.card, ctx.brand, "bluesky", short, data.get("displayName") or "",
                          data.get("description") or "", data.get("createdAt"), data.get("followersCount"))
+    det.update(await _affiliation(ctx, "bluesky", short, data.get("displayName") or "", data.get("description") or ""))
     ctx.indicator("handle", short.lower())
     ctx.evidence.append(EvidenceItem("bluesky_profile", data))
     return ctx.ran("bluesky_profile", handle=handle, display_name=data.get("displayName"),
@@ -213,5 +246,6 @@ async def check_closed_social(ctx: Ctx):
     if res.status_code != 200 or not title or LOGIN_WALL.match(title):
         return ctx.not_possible("public_og_tags", "login wall or generic page: the platform hides this profile")
     det = social_signals(ctx.card, ctx.brand, ctx.link.platform, ctx.link.ident, title, desc)
+    det.update(await _affiliation(ctx, ctx.link.platform, ctx.link.ident, title, desc))
     ctx.evidence.append(EvidenceItem("public_og_tags", {"url": res.url, "title": title, "description": desc}))
     return ctx.ran("public_og_tags", title=title, description=desc[:300], handle=ctx.link.ident, **det)

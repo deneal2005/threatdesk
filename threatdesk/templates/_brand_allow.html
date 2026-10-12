@@ -15,7 +15,7 @@
             <td class="mono">{{ w.value }}</td>
             <td class="hide-sm small">{{ w.reason }}</td>
             <td class="tight faint" title="{{ w.created|dt }}">{{ w.created|ago }}</td>
-            <td class="tight"><form method="post" action="/brands/{{ brand.id }}/whitelist/{{ w.id }}/delete">{{ m.csrf() }}<button class="btn ghost sm" aria-label="Remove {{ w.value }} from the allow list">Remove</button></form></td>
+            <td class="tight"><form method="post" action="/brands/{{ brand.id }}/whitelist/{{ w.id }}/delete" data-confirm="Remove {{ w.value }} from the allow list? Future scans may flag it again.">{{ m.csrf() }}<button class="btn ghost sm" aria-label="Remove {{ w.value }} from the allow list">Remove</button></form></td>
           </tr>
         {% endfor %}
         </tbody>

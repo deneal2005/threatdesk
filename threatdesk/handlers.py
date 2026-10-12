@@ -43,6 +43,8 @@ def load_brand_ctx(org_id: int, brand_id: int | None) -> BrandContext:
 def _save(org_id: int, brand_id: int | None, report, source: str, in_triage: bool, user_submitted: bool,
           intake_id: int | None) -> dict:
     with session_scope() as db:
+        if brand_id and db.scalar(select(Brand.id).where(Brand.id == brand_id, Brand.org_id == org_id)) is None:
+            return {"skipped": "brand deleted"}      # deleted while the checks ran: save nothing
         f, created = save_report(db, org_id, brand_id, report, source, in_triage=in_triage,
                                  user_submitted=user_submitted)
         if intake_id:
@@ -72,6 +74,8 @@ def _close_existing(org_id: int, brand_id: int | None, report) -> bool:
 async def handle_investigate(jid: int, payload: dict, org_id: int | None) -> dict:
     brand_id = payload.get("brand_id")
     brand = await asyncio.to_thread(load_brand_ctx, org_id, brand_id)
+    if brand_id and not brand.id:              # the brand was deleted after this job was queued
+        return {"skipped": "brand deleted"}
     report = await investigate(payload["url"], brand=brand)
     if network_outage(report):
         raise NetworkUnavailable("most checks failed with network errors; retrying later")

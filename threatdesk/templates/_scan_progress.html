@@ -1,0 +1,84 @@
+{# Live progress of a brand's latest scan, read from the jobs table. Polls itself while anything is still running. #}
+{% import "macros.html" as m with context %}
+{% set pid = "scan-progress-" ~ brand.id ~ ("-c" if compact else "") %}
+<div id="{{ pid }}" class="scan-progress{% if compact %} is-compact{% endif %}"
+  {% if p and p.active %}hx-get="/brands/{{ brand.id }}/scan/progress{% if compact %}?compact=1{% if with_button %}&amp;button=1{% endif %}{% endif %}" hx-trigger="every 2s" hx-swap="outerHTML"{% endif %}>
+{% if not p %}
+  <div class="empty slim">
+    <h3>No scans yet</h3>
+    <p>A scan looks for look-alike domains, copycat apps, channels and accounts, investigates each one, and checks your official assets that aren't verified yet.</p>
+    <form method="post" action="/brands/{{ brand.id }}/scan">{{ m.csrf() }}<button class="btn">{{ m.icon("scan") }}Scan now</button></form>
+  </div>
+{% else %}
+  {% set s = p.scan %}
+  {% set labels = {"queued": "Waiting for a free worker", "running": "Scanning now", "done": "Scan finished",
+                   "partial": "Scan finished with some errors", "failed": "Scan stopped"} %}
+  <div class="sheet scan-card state-{{ p.state }}" {% if p.active %}aria-busy="true"{% endif %}>
+    <div class="scan-card-head">
+      <span class="scan-state-dot" aria-hidden="true"></span>
+      <div class="grow">
+        <strong role="status" aria-live="polite">{% if compact %}{{ brand.name }}: {% endif %}{{ labels[p.state] }}</strong>
+        <span class="cell-sub" title="{{ s.created|dt }}">Started {{ s.created|ago }}{% if (s.payload or {}).get("scheduled") %} · scheduled{% endif %}{% if not p.active and p.finished_at %} · finished {{ p.finished_at|ago }}{% endif %}</span>
+      </div>
+      {% if compact %}<a class="small nowrap" href="/brands/{{ brand.id }}">Details →</a>{% endif %}
+    </div>
+
+    <ol class="scan-phases">
+      <li class="phase phase-{{ 'done' if s.status == 'done' else ('bad' if s.status == 'failed' else 'live') }}">
+        <span class="phase-name">Discovery</span>
+        <span class="phase-detail small muted">
+          {% if s.status == "queued" %}Waiting to start{% if s.attempts %} (retry {{ s.attempts + 1 }}){% endif %}{% if s.error %}: last try failed: {{ s.error }}{% endif %}
+          {% elif s.status == "running" %}Searching domains, certificate logs, app stores and social platforms…
+          {% elif s.status == "failed" %}Failed after {{ s.attempts }} attempt(s): {{ s.error }}
+          {% else %}{{ p.sources|length }} sources searched · {{ (s.result or {}).get("enqueued", 0) }} lead{{ "s" if (s.result or {}).get("enqueued", 0) != 1 }} found{% if (s.result or {}).get("search_findings_new") %} · {{ s.result.search_findings_new }} profiles from search results{% endif %}{% endif %}
+        </span>
+      </li>
+      <li class="phase phase-{{ 'wait' if s.status in ('queued', 'running') else ('live' if p.leads.live else 'done') }}">
+        <span class="phase-name">Investigating leads</span>
+        {% if p.leads.total %}
+        <progress max="{{ p.leads.total }}" value="{{ p.leads.finished }}" aria-label="Leads investigated">{{ p.leads.percent }}%</progress>
+        <span class="phase-detail small muted"><span class="num">{{ p.leads.finished }}/{{ p.leads.total }}</span> done{% if p.leads.running %} · {{ p.leads.running }} running{% endif %}{% if p.leads.failed %} · <span class="tone-bad">{{ p.leads.failed }} failed</span>{% endif %}</span>
+        {% else %}
+        <span class="phase-detail small muted">{% if s.status in ("queued", "running") %}Starts when discovery finishes{% else %}No new leads to investigate{% endif %}</span>
+        {% endif %}
+      </li>
+      <li class="phase phase-{{ 'live' if p.checks.live else 'done' }}">
+        <span class="phase-name">Checking your official assets</span>
+        {% if p.checks.total %}
+        <progress max="{{ p.checks.total }}" value="{{ p.checks.finished }}" aria-label="Asset checks finished">{{ p.checks.percent }}%</progress>
+        <span class="phase-detail small muted"><span class="num">{{ p.checks.finished }}/{{ p.checks.total }}</span> checked · {{ p.verified }} verified{% if p.checks.failed %} · <span class="tone-bad">{{ p.checks.failed }} could not finish</span>{% endif %}</span>
+        {% else %}
+        <span class="phase-detail small muted">{% if (s.payload or {}).get("scheduled") %}Scheduled scans skip asset checks{% else %}Nothing to check: every active asset is verified or already being checked{% endif %}</span>
+        {% endif %}
+      </li>
+    </ol>
+
+    <div class="scan-results">
+      <span><span class="num bold">{{ p.new_findings }}</span> new finding{{ "s" if p.new_findings != 1 }}</span>
+      <span><span class="num">{{ p.updated_findings }}</span> already known</span>
+      {% if p.official_skipped %}<span title="Leads that turned out to be the brand's own or allow-listed"><span class="num">{{ p.official_skipped }}</span> official or allowed, skipped</span>{% endif %}
+      {% if p.new_findings or p.updated_findings %}<a class="btn quiet sm" href="/findings?brand_id={{ brand.id }}&amp;view=new">Review findings →</a>{% endif %}
+    </div>
+
+    {% if not compact and not p.active and p.sources %}
+    <details class="scan-sources" {% if p.state != "done" %}open{% endif %}>
+      <summary class="linklike small">Source details</summary>
+      <ul class="rows">
+        {% for src in p.sources %}
+        {% set badge = src.status|scan_source_badge(src.candidates) %}
+        <li><span class="source-state {{ badge.class }}" aria-hidden="true"></span>
+          <span class="grow"><strong>{{ src.name|scan_source }}</strong><span class="cell-sub">{{ badge.summary|dfg }}</span></span>
+          <span class="source-badge {{ badge.class }}"><span class="badge-icon" aria-hidden="true">{{ badge.icon }}</span> <span>{{ badge.label }}</span>{% if badge.class == 'ok' %} <span class="num" title="candidates">({{ src.candidates }})</span>{% endif %}</span></li>
+        {% endfor %}
+      </ul>
+    </details>
+    {% endif %}
+
+    {% if not p.active and not compact %}
+    <form class="scan-again" method="post" action="/brands/{{ brand.id }}/scan">{{ m.csrf() }}<button class="btn quiet sm">{{ m.icon("scan") }}{{ "Try again" if p.state == "failed" else "Scan again" }}</button></form>
+    {% endif %}
+    <noscript>{% if p.active %}<p class="small">Reload the page to update progress.</p>{% endif %}</noscript>
+  </div>
+{% endif %}
+</div>
+{% if oob_button %}{% include "_scan_button.html" %}{% endif %}

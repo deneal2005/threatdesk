@@ -123,7 +123,7 @@
 {# Brand-only and Discovery views with nothing in them still offer a scan; any other filter just found no match #}
 {% set narrowed = severity or (source and source != "discovery") or since or reported or status_f or tier_f or query_str %}
 {% if rows %}
-<form method="post" action="/findings/bulk" class="bulk-form" data-confirm="Mark the selected findings as false positives?">
+<form method="post" action="/findings/bulk" class="bulk-form">
   {{ m.csrf() }}
   <div class="table-wrap">
     <table>
@@ -171,12 +171,12 @@
       </tbody>
     </table>
   </div>
-  <div class="pagination-bar section-gap" style="display: flex; justify-content: space-between; align-items: center; margin: 1rem 0; flex-wrap: wrap; gap: 0.5rem;">
+  <div class="pagination-bar section-gap">
     <span class="small muted">
       Showing {{ rows|length }} of {{ total_matching }} matching findings · Page {{ page }} of {{ total_pages }}
     </span>
     {% if total_pages > 1 %}
-    <div class="pagination-links" style="display: flex; gap: 0.5rem; align-items: center;">
+    <div class="pagination-links">
       {% if page > 1 %}
       <a class="btn quiet sm" href="/findings?view={{ view }}&amp;page={{ page - 1 }}{{ keep }}">← Previous</a>
       {% endif %}

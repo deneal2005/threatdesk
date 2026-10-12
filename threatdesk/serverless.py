@@ -19,7 +19,7 @@ log = logging.getLogger("threatdesk.serverless")
 CRON_WINDOW_SECONDS = 270          # Vercel's default function limit is 300 s; leave room to answer
 STALE_GRACE_SECONDS = 60
 # HTMX sends the id of the polling element in HX-Trigger; these elements poll only while work is pending.
-POLLERS = re.compile(r"(job-\d+|asset-list)")
+POLLERS = re.compile(r"(job-\d+|asset-list|scan-progress-\d+(-c)?)")
 
 
 def wants_pump(method: str, headers, session_cookie: str | None) -> bool:

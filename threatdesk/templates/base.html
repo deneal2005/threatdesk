@@ -157,10 +157,16 @@
       </div>
 
       <div class="topbar-actions">
-        <a href="/notifications" class="topbar-btn" title="Security alerts">
-          {{ m.icon("alerts") }}
-          {% if unread %}<span class="topbar-dot" aria-label="{{ unread }} unread alerts"></span>{% endif %}
-        </a>
+        <details class="menu notif-menu" id="notif-menu">
+          <summary class="topbar-btn" title="Alerts" aria-label="Alerts{% if unread %}, {{ unread }} unread{% endif %}" aria-haspopup="true">
+            {{ m.icon("alerts") }}
+            {% with oob=False %}{% include "_notif_badge.html" %}{% endwith %}
+          </summary>
+          <div class="menu-pop notif-pop" id="notif-pop" role="region" aria-label="Recent alerts" aria-live="polite">
+            <div class="notif-loading small muted" role="status">Loading alerts…</div>
+            <div class="notif-foot"><a href="/notifications">View all alerts</a></div>
+          </div>
+        </details>
         {% if not cur_path.startswith("/investigate") %}
         <a href="/investigate" class="btn quiet sm topbar-investigate" title="Check a suspicious link, app or profile">
           {{ m.icon("investigate") }}<span>Investigate</span>

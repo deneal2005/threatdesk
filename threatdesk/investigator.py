@@ -93,6 +93,9 @@ async def _website(ctx: Ctx) -> None:
         run_check("ct_history", ct.check_ct, ctx),                        # after rdap_domain: age fallback
         run_check("ownership", ownership.check_ownership, ctx))           # after rdap_domain: registrar, registrant
     content.independent_site(ctx)                                         # needs page, rdap and ct results
+    from threatdesk.checks import apify_trust
+    if not exclusion(ctx.link, ctx.brand):                                # never pay to look at the brand's own site
+        await run_check("third_party_trust", apify_trust.check_trust, ctx, timeout=60)
 
 
 async def _run_kind(ctx: Ctx) -> None:
@@ -170,7 +173,8 @@ async def investigate(url: str, brand: BrandContext | None = None, settings: Set
         await _run_kind(ctx)
         if not excluded and ctx.facts.get("official_publisher"):      # an app by the brand or a listed group company
             excluded = f"official publisher: {ctx.facts['official_publisher']}"
-        ran = sum(1 for o in ctx.outcomes if o.status == RAN)
+        # Labelled third-party context (informational) does not count towards coverage.
+        ran = sum(1 for o in ctx.outcomes if o.status == RAN and not o.detail.get("informational"))
         ai = {"status": llm.UNAVAILABLE}
         if use_ai and settings.gemini_api_key and not excluded:
             res = await llm.assess(client, ai_facts(ctx, brand), thin=ran < MIN_CHECKS)

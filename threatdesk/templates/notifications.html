@@ -19,9 +19,10 @@
   {% for n in rows %}
   <li class="{{ 'unread' if not n.read }}">
     <span class="dot" aria-hidden="true"></span>
-    <span class="grow">{% if n.finding_id %}<a href="/findings/{{ n.finding_id }}">{{ n.text|dfg }}</a>{% else %}{{ n.text|dfg }}{% endif %}
+    <span class="grow"><a href="/notifications/{{ n.id }}/open">{{ n.text|dfg }}</a>
       {% if not n.read %}<span class="sr">(unread)</span>{% endif %}</span>
     <span class="small faint nowrap" title="{{ n.created|dt }}">{{ n.created|ago }}</span>
+    {% if not n.read %}<form method="post" action="/notifications/{{ n.id }}/read">{{ m.csrf() }}<button class="btn ghost sm" aria-label="Mark as read">Mark read</button></form>{% endif %}
   </li>
   {% endfor %}
 </ul>

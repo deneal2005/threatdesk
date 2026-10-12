@@ -50,7 +50,7 @@
         <thead><tr><th>Key</th><th>Label</th><th class="hide-sm">Created</th><th class="tight">State</th>{% if admin %}<th class="tight"><span class="sr">Revoke</span></th>{% endif %}</tr></thead>
         <tbody>{% for k in keys %}<tr><td class="mono">{{ k.prefix }}…</td><td>{{ k.label }}</td><td class="hide-sm faint">{{ k.created|dt }}</td>
           <td class="tight">{{ "Revoked" if k.revoked else "Active" }}</td>
-          {% if admin %}<td class="tight">{% if not k.revoked %}<form method="post" action="/settings/api-keys/{{ k.id }}/revoke">{{ m.csrf() }}<button class="btn danger sm">Revoke</button></form>{% endif %}</td>{% endif %}</tr>{% endfor %}</tbody>
+          {% if admin %}<td class="tight">{% if not k.revoked %}<form method="post" action="/settings/api-keys/{{ k.id }}/revoke" data-confirm="Revoke this API key? Anything using it stops working immediately.">{{ m.csrf() }}<button class="btn danger sm">Revoke</button></form>{% endif %}</td>{% endif %}</tr>{% endfor %}</tbody>
       </table>
     </div>
     {% else %}<p class="small muted">No keys yet.</p>{% endif %}
