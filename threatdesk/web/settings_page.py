@@ -19,22 +19,36 @@ router = APIRouter()
 CSRF = Depends(csrf_protect)
 
 
-def integrations() -> list[tuple[str, str, bool]]:
+def integrations() -> list[dict]:
     s = get_settings()
     return [
-        ("Gemini AI", "GEMINI_API_KEY", bool(s.gemini_api_key)),
-        ("YouTube Data API", "YOUTUBE_API_KEY", bool(s.youtube_api_key)),
-        ("Google Safe Browsing", "SAFE_BROWSING_API_KEY", bool(s.safe_browsing_api_key)),
-        ("VirusTotal", "VT_API_KEY", bool(s.vt_api_key)),
-        ("URLhaus", "URLHAUS_AUTH_KEY", bool(s.urlhaus_auth_key)),
-        ("Google Custom Search", "GOOGLE_CSE_KEY + GOOGLE_CSE_CX", bool(s.google_cse_key and s.google_cse_cx)),
-        ("Brave Search", "BRAVE_API_KEY", bool(s.brave_api_key)),
-        ("Apify profile reader", "APIFY_TOKEN", bool(s.apify_token)),
-        ("Public scam lists", "SCAM_LISTS", s.scam_lists),
-        ("PhishTank", "PHISHTANK_APP_KEY (optional)", True),
-        ("Email relay", "SMTP_HOST", bool(s.smtp_host and s.smtp_from)),
-        ("Cron endpoint", "CRON_SECRET", bool(s.cron_secret)),
-        ("Screenshots", "ENABLE_SCREENSHOTS", s.enable_screenshots),
+        {"name": "Gemini AI", "env": "GEMINI_API_KEY", "on": bool(s.gemini_api_key),
+         "category": "Analysis & Triage", "note": "Optional generative summaries; deterministic rules run regardless"},
+        {"name": "YouTube Data API", "env": "YOUTUBE_API_KEY", "on": bool(s.youtube_api_key),
+         "category": "Social & Video", "note": "Official channel & video discovery; falls back to public web scraper"},
+        {"name": "Google Safe Browsing", "env": "SAFE_BROWSING_API_KEY", "on": bool(s.safe_browsing_api_key),
+         "category": "Reputation Feeds", "note": "Global malware and phishing blocklist verification"},
+        {"name": "VirusTotal", "env": "VT_API_KEY", "on": bool(s.vt_api_key),
+         "category": "Reputation Feeds", "note": "Multi-engine antivirus and domain reputation scanner"},
+        {"name": "URLhaus", "env": "URLHAUS_AUTH_KEY", "on": bool(s.urlhaus_auth_key),
+         "category": "Reputation Feeds", "note": "Abuse.ch malware URL and payload tracking feeds"},
+        {"name": "Google Custom Search", "env": "GOOGLE_CSE_KEY + GOOGLE_CSE_CX",
+         "on": bool(s.google_cse_key and s.google_cse_cx),
+         "category": "Search & Web", "note": "Discovery search engine for brand impersonation domains"},
+        {"name": "Brave Search", "env": "BRAVE_API_KEY", "on": bool(s.brave_api_key),
+         "category": "Search & Web", "note": "Alternative independent web index for domain typosquats"},
+        {"name": "Apify Profile Reader", "env": "APIFY_TOKEN", "on": bool(s.apify_token),
+         "category": "Social & Video", "note": "Actor scraper for Instagram/TikTok; OpenGraph heuristic fallback active"},
+        {"name": "Public Scam Lists", "env": "SCAM_LISTS", "on": bool(s.scam_lists),
+         "category": "Reputation Feeds", "note": "Curated community scam and fraud domain lists (auto-refreshed)"},
+        {"name": "PhishTank", "env": "PHISHTANK_APP_KEY (optional)", "on": True,
+         "category": "Reputation Feeds", "note": "Public verified phishing feed query (open access active)"},
+        {"name": "Email Relay (SMTP)", "env": "SMTP_HOST", "on": bool(s.smtp_host and s.smtp_from),
+         "category": "Infrastructure", "note": "External security alerts delivery to organization mailing lists"},
+        {"name": "Cron Scheduler", "env": "CRON_SECRET", "on": bool(s.cron_secret),
+         "category": "Infrastructure", "note": "Authenticated tick endpoint for scheduled brand discovery scans"},
+        {"name": "Target Screenshots", "env": "ENABLE_SCREENSHOTS", "on": bool(s.enable_screenshots),
+         "category": "Evidence Capture", "note": "Visual evidence archiving of deceptive landing pages"},
     ]
 
 

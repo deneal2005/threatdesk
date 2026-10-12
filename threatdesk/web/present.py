@@ -235,11 +235,13 @@ def scan_source(name: str | None) -> str:
     return SCAN_SOURCES.get(name or "", (name or "").replace("_", " ").capitalize())
 
 
-def scan_status(text: str | None) -> str:
-    """CSS state for a source status line: ok (ran), bad (failed), off (not configured / not possible)."""
+def scan_status(text: str | None, candidates: int = 0) -> str:
+    """CSS state for a source status line: ok, clean, bad, timeout, off."""
     t = (text or "").lower()
     if t.startswith("ok"):
-        return "ok"
+        return "ok" if candidates > 0 else "clean"
+    if "ran out of time" in t or "timeout" in t:
+        return "timeout"
     if t.startswith("failed") or t.startswith("error"):
         return "bad"
     return "off"

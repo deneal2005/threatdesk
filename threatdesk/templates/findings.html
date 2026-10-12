@@ -2,7 +2,7 @@
 {% import "macros.html" as m with context %}
 {% block title %}Findings &amp; Triage · ThreatDesk{% endblock %}
 {% block content %}
-{% set keep %}{% if brand_id %}&amp;brand_id={{ brand_id }}{% endif %}{% if severity %}&amp;severity={{ severity }}{% endif %}{% if source %}&amp;source={{ source|urlencode }}{% endif %}{% if since %}&amp;since={{ since_value }}{% endif %}{% if reported %}&amp;reported=1{% endif %}{% if tier_f %}&amp;tier={{ tier_f }}{% endif %}{% if query_str %}&amp;q={{ query_str|urlencode }}{% endif %}{% endset %}
+{% set keep %}{% if brand_id %}&amp;brand_id={{ brand_id }}{% endif %}{% if severity %}&amp;severity={{ severity }}{% endif %}{% if source %}&amp;source={{ source|urlencode }}{% endif %}{% if since %}&amp;since={{ since_value }}{% endif %}{% if reported %}&amp;reported=1{% endif %}{% if tier_f %}&amp;tier={{ tier_f }}{% endif %}{% if query_str %}&amp;q={{ query_str|urlencode }}{% endif %}{% if sort_by and sort_by != 'score' %}&amp;sort={{ sort_by }}{% endif %}{% endset %}
 
 <header class="page-head">
   <div class="titles">
@@ -95,6 +95,14 @@
             {% endfor %}
           </select>
         </div>
+        <div class="field">
+          <label for="f-sort">Order By</label>
+          <select id="f-sort" name="sort">
+            <option value="score" {% if sort_by == 'score' %}selected{% endif %}>Highest Severity Score</option>
+            <option value="newest" {% if sort_by == 'newest' %}selected{% endif %}>Newest Detected</option>
+            <option value="oldest" {% if sort_by == 'oldest' %}selected{% endif %}>Oldest Detected</option>
+          </select>
+        </div>
         <label class="check">
           <input type="checkbox" name="since" value="{{ since_value }}" {% if since %}checked{% endif %}>
           New since my last visit{% if since_at %} ({{ since_at|ago }}){% endif %}
@@ -115,7 +123,7 @@
 {# Brand-only and Discovery views with nothing in them still offer a scan; any other filter just found no match #}
 {% set narrowed = severity or (source and source != "discovery") or since or reported or status_f or tier_f or query_str %}
 {% if rows %}
-<form method="post" action="/findings/bulk" data-confirm="Mark the selected findings as false positives?">
+<form method="post" action="/findings/bulk" class="bulk-form" data-confirm="Mark the selected findings as false positives?">
   {{ m.csrf() }}
   <div class="table-wrap">
     <table>
@@ -163,9 +171,22 @@
       </tbody>
     </table>
   </div>
-  {% if rows|length >= 500 %}
-    <p class="small muted section-gap">Showing the first 500 findings. Use filters or search to narrow your view.</p>
-  {% endif %}
+  <div class="pagination-bar section-gap" style="display: flex; justify-content: space-between; align-items: center; margin: 1rem 0; flex-wrap: wrap; gap: 0.5rem;">
+    <span class="small muted">
+      Showing {{ rows|length }} of {{ total_matching }} matching findings · Page {{ page }} of {{ total_pages }}
+    </span>
+    {% if total_pages > 1 %}
+    <div class="pagination-links" style="display: flex; gap: 0.5rem; align-items: center;">
+      {% if page > 1 %}
+      <a class="btn quiet sm" href="/findings?view={{ view }}&amp;page={{ page - 1 }}{{ keep }}">← Previous</a>
+      {% endif %}
+      <span class="small num bold">Page {{ page }}</span>
+      {% if page < total_pages %}
+      <a class="btn quiet sm" href="/findings?view={{ view }}&amp;page={{ page + 1 }}{{ keep }}">Next →</a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
 
   <div class="bulkbar" role="region" aria-label="Bulk actions">
     <span class="picked" aria-hidden="true"></span>

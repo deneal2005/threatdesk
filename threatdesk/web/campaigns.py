@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Request
+from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -36,6 +37,12 @@ def _page(request: Request, db: Session, user: User, rebuild_info: dict | None =
 @router.get("/campaigns")
 def campaigns_page(request: Request, user: User = Depends(current_user), db: Session = Depends(get_db)):
     return _page(request, db, user)
+
+
+@router.get("/campaigns/{cid:int}")
+def campaign_detail(cid: int, user: User = Depends(current_user)):
+    return RedirectResponse("/campaigns", status_code=303)
+
 
 
 @router.post("/campaigns/rebuild", dependencies=[Depends(csrf_protect)])

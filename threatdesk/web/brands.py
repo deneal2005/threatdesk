@@ -166,3 +166,8 @@ def scan_now(brand_id: int, user: User = Depends(current_user), db: Session = De
         jobs.enqueue(db, "scan", {"brand_id": brand.id}, user.org_id, created_by=user.id, max_attempts=3)
         db.commit()
     return RedirectResponse(f"/brands/{brand.id}?m=queued", status_code=303)
+
+
+@router.get("/discovery")
+def discovery_redirect(request: Request):
+    return RedirectResponse("/brands", status_code=303)

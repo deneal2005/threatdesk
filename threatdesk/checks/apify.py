@@ -2,7 +2,12 @@
 from __future__ import annotations
 
 import time
-from datetime import UTC, datetime
+from datetime import datetime, timezone
+
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = timezone.utc
 
 from threatdesk.checks.base import Ctx, EvidenceItem, get_json
 from threatdesk.checks.social import social_signals

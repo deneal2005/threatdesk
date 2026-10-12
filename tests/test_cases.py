@@ -154,3 +154,32 @@ def test_finding_routes_isolated():
     for path in ("save", "status", "assign", "comment", "profile-details"):
         assert b.post(f"/findings/{fid}/{path}", data={"to": "confirmed", "reason": "x", "body": "x",
                                                         "csrf_token": tok}).status_code == 404
+
+
+def test_findings_empty_state_with_scan_cta():
+    c = make_client()
+    signup(c, "fresh@example.com", "Fresh Org")
+    oid = org_of("fresh@example.com")
+
+    # 1. Zero brands registered yet
+    page_nobrands = c.get("/findings").text
+    assert "No brands registered yet" in page_nobrands
+    assert "/brands/new" in page_nobrands
+
+    # 2. Brand registered, zero findings -> shows scan CTA
+    bid = make_brand(oid, "Fresh Brand")
+    page_empty = c.get("/findings").text
+    assert "No findings yet" in page_empty
+    assert f"/brands/{bid}/scan" in page_empty
+    assert "Run First Brand Discovery Scan (Fresh Brand)" in page_empty
+
+    # 3. Post scan CTA via existing authorized route
+    tok = csrf(c, "/findings")
+    res = c.post(f"/brands/{bid}/scan", data={"csrf_token": tok})
+    assert res.status_code == 303 and f"/brands/{bid}?m=queued" in res.headers["location"]
+
+    with db.session_scope() as s:
+        from threatdesk.models import Job
+        job = s.scalar(select(Job).where(Job.org_id == oid, Job.type == "scan"))
+        assert job is not None and job.payload["brand_id"] == bid
+

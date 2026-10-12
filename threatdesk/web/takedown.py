@@ -19,6 +19,12 @@ router = APIRouter()
 CSRF = Depends(csrf_protect)
 
 
+@router.get("/takedown")
+def takedown_index_redirect():
+    return RedirectResponse("/findings?status=takedown_requested", status_code=303)
+
+
+
 @router.get("/findings/{fid:int}/takedown")
 def takedown_page(fid: int, request: Request, user: User = Depends(current_user), db: Session = Depends(get_db)):
     f = get_owned(db, Finding, fid, user.org_id)

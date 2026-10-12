@@ -14,6 +14,12 @@ def test_seed_is_labelled_offline_and_idempotent(monkeypatch, capsys):
         rows = s.scalars(select(Finding)).all()
         assert len(rows) == 5 and {f.source for f in rows} == {"demo-fixture"}
         by_name = {f.display_name: f for f in rows}
+        now = db.utcnow()
+        for f in rows:
+            assert f.first_seen <= f.last_seen <= now
+            # All seeded findings are fresh within the last 7 days
+            assert (now - f.last_seen).total_seconds() < 86400 * 7
+        assert by_name["acmebank-kyc.xyz"].first_seen < by_name["acmebank-kyc.xyz"].last_seen
         assert by_name["acmebank-kyc.xyz"].verdict == "High risk" and by_name["acmebank-kyc.xyz"].status == "confirmed"
         assert by_name["old-bakery.com"].verdict == "No strong signals"
         assert s.scalar(select(Campaign)) is not None                  # shared phone/UPI link the fake pages

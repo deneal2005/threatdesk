@@ -11,6 +11,7 @@ Needs DATABASE_URL, DEMO_EMAIL and DEMO_PASSWORD in .env. Idempotent: does nothi
 from __future__ import annotations
 
 import asyncio
+from datetime import timedelta
 import os
 import sys
 
@@ -20,7 +21,7 @@ from threatdesk import campaigns, cases
 from threatdesk.assets import store
 from threatdesk.assets.forms import parse_app_listing, parse_social, parse_website
 from threatdesk.brands import BrandContext, new_report_token
-from threatdesk.db import create_all, session_scope
+from threatdesk.db import create_all, session_scope, utcnow
 from threatdesk.intake import analyze_text
 from threatdesk.investigator import investigate
 from threatdesk.models import Brand, Org, User
@@ -91,14 +92,33 @@ def main() -> int:
     reports.append(analyze_text(MESSAGE, ctx, None))
     with session_scope() as db:
         user = db.get(User, user_id)
+        now = utcnow()
         saved = []
         for r in reports:
             f, _ = save_report(db, org_id, brand_id, r, SOURCE, in_triage=True, user_submitted=r.kind == "other")
             saved.append(f)
+
+        # Staggered relative timestamps for realistic demo triage freshness
+        offsets = [
+            (timedelta(hours=4), timedelta(minutes=15)),      # phish: first seen 4h ago, last seen 15m ago
+            (timedelta(hours=6), timedelta(hours=1)),         # support: first seen 6h ago, last seen 1h ago
+            (timedelta(days=1, hours=2), timedelta(hours=2)),  # rewards: first seen 26h ago, last seen 2h ago
+            (timedelta(days=3), timedelta(hours=8)),          # bakery: first seen 3d ago, last seen 8h ago
+            (timedelta(minutes=45), timedelta(minutes=45)),   # user report: first seen 45m ago, last seen 45m ago
+        ]
+        for i, f in enumerate(saved):
+            if i < len(offsets):
+                first_delta, last_delta = offsets[i]
+                f.first_seen = now - first_delta
+                f.last_seen = now - last_delta
+
         phish = saved[0]
-        cases.change_status(db, phish, user, "investigating", "Demo: credential form and KYC lure on a 5-day-old domain")
-        cases.change_status(db, phish, user, "confirmed", "Demo: impersonates Acme Bank, asks for password and OTP")
-        cases.comment(db, phish, user, "Demo: takedown packet ready to send to the registrar's abuse desk.")
+        ev_inv = cases.change_status(db, phish, user, "investigating", "Demo: credential form and KYC lure on a 5-day-old domain")
+        ev_inv.at = now - timedelta(hours=2, minutes=30)
+        ev_conf = cases.change_status(db, phish, user, "confirmed", "Demo: impersonates Acme Bank, asks for password and OTP")
+        ev_conf.at = now - timedelta(hours=1, minutes=15)
+        ev_comm = cases.comment(db, phish, user, "Demo: takedown packet ready to send to the registrar's abuse desk.")
+        ev_comm.at = now - timedelta(minutes=30)
         db.commit()
         info = campaigns.rebuild(db, org_id)
     print(f"Seeded '{ORG}' with brand Acme Bank, {len(reports)} demo-fixture findings, "

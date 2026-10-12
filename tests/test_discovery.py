@@ -87,3 +87,39 @@ def test_discovery_skips_official_results(monkeypatch):
     with db.session_scope() as s:
         assert s.scalar(select(Finding)) is None
     assert config.get_settings()
+
+
+def test_discovery_source_badges_and_statuses():
+    from threatdesk.web.present import scan_source_badge, scan_status
+
+    # 1. Succeeded with candidates
+    b_ok = scan_source_badge("ok: 12 candidates, 4 resolve", candidates=4)
+    assert b_ok["class"] == "ok" and b_ok["icon"] == "✓" and b_ok["label"] == "Found candidates"
+    assert scan_status("ok: 12 candidates", candidates=4) == "ok"
+
+    # 2. Clean / No candidates found
+    b_clean = scan_source_badge("ok: 0 channels resemble the brand", candidates=0)
+    assert b_clean["class"] == "clean" and b_clean["icon"] == "○" and b_clean["label"] == "No threats found"
+    assert scan_status("ok: 0 channels", candidates=0) == "clean"
+
+    # 3. Timed out
+    b_timeout = scan_source_badge("failed: ran out of time", candidates=0)
+    assert b_timeout["class"] == "timeout" and b_timeout["icon"] == "⏱" and b_timeout["label"] == "Timed out"
+    assert scan_status("failed: ran out of time") == "timeout"
+
+    # 4. Failed with HTTP error
+    b_fail = scan_source_badge("failed: crt.sh answered HTTP 502", candidates=0)
+    assert b_fail["class"] == "bad" and b_fail["icon"] == "⚠" and b_fail["label"] == "Failed"
+    assert b_fail["summary"] == "HTTP 502"
+    assert scan_status("failed: error") == "bad"
+
+    # 5. Not configured
+    b_unconf = scan_source_badge("not configured (YOUTUBE_API_KEY)", candidates=0)
+    assert b_unconf["class"] == "off" and b_unconf["icon"] == "⚙" and b_unconf["label"] == "Not configured"
+    assert scan_status("not configured") == "off"
+
+    # 6. Skipped / Not possible
+    b_skip = scan_source_badge("not possible: the brand has no official Telegram handle", candidates=0)
+    assert b_skip["class"] == "off" and b_skip["icon"] == "⊘" and b_skip["label"] == "Skipped"
+    assert scan_status("not possible") == "off"
+

@@ -195,10 +195,60 @@
       </table>
     </div>
     {% elif not brands %}
-    <div class="empty">
-      <h3>Start by adding your brand</h3>
-      <p>Tell ThreatDesk which websites, accounts and apps are really yours. Then it can find what pretends to be you.</p>
-      <a class="btn" href="/brands/new">{{ m.icon("plus") }}Add a brand</a>
+    <div class="sheet pad onboarding-checklist-panel">
+      <div class="panel-head-compact">
+        <span class="eyebrow">First-Time Setup</span>
+        <h3 class="panel-title-md">Start by adding your brand</h3>
+        <span class="small muted">Organization Onboarding Checklist</span>
+      </div>
+      <p class="lede small" style="margin-top: 0.25rem;">
+        ThreatDesk needs your official perimeter details to identify impersonators, typosquats, and unauthorized apps without false positives.
+      </p>
+      <ol class="rows checklist-steps" style="list-style: none; padding: 0; margin: 1rem 0;">
+        <li style="display: flex; gap: 0.75rem; align-items: flex-start; padding: 0.75rem 0; border-bottom: 1px solid var(--border);">
+          <span class="source-state ok" style="margin-top: 0.2rem;" aria-hidden="true"></span>
+          <span class="grow">
+            <strong>1. Organization Created</strong>
+            <span class="cell-sub">Tenant workspace isolated and administrative account active.</span>
+          </span>
+          <span class="cs cs-ran">Completed</span>
+        </li>
+        <li style="display: flex; gap: 0.75rem; align-items: flex-start; padding: 0.75rem 0; border-bottom: 1px solid var(--border);">
+          <span class="source-state off" style="margin-top: 0.2rem;" aria-hidden="true"></span>
+          <span class="grow">
+            <strong>2. Register Protected Brand Profile</strong>
+            <span class="cell-sub">Add brand name, industry, and official keywords to anchor detection models.</span>
+          </span>
+          <a class="btn sm" href="/brands/new">{{ m.icon("plus") }} Register Brand</a>
+        </li>
+        <li style="display: flex; gap: 0.75rem; align-items: flex-start; padding: 0.75rem 0; border-bottom: 1px solid var(--border);">
+          <span class="source-state off" style="margin-top: 0.2rem;" aria-hidden="true"></span>
+          <span class="grow">
+            <strong>3. Register Official Perimeter Assets</strong>
+            <span class="cell-sub">Add primary websites, verified social handles, and mobile app IDs to allowlists.</span>
+          </span>
+          <span class="cs cs-not_configured">Pending Step 2</span>
+        </li>
+        <li style="display: flex; gap: 0.75rem; align-items: flex-start; padding: 0.75rem 0; border-bottom: 1px solid var(--border);">
+          <span class="source-state off" style="margin-top: 0.2rem;" aria-hidden="true"></span>
+          <span class="grow">
+            <strong>4. Run First Discovery Scan</strong>
+            <span class="cell-sub">Scan registries, certificate transparency logs, social networks, and app stores.</span>
+          </span>
+          <span class="cs cs-not_configured">Pending Step 2</span>
+        </li>
+        <li style="display: flex; gap: 0.75rem; align-items: flex-start; padding: 0.75rem 0;">
+          <span class="source-state off" style="margin-top: 0.2rem;" aria-hidden="true"></span>
+          <span class="grow">
+            <strong>5. Triage Detected Findings</strong>
+            <span class="cell-sub">Review high-priority alerts, inspect threat evidence, and coordinate takedowns.</span>
+          </span>
+          <span class="cs cs-not_configured">Pending Step 4</span>
+        </li>
+      </ol>
+      <div style="margin-top: 1rem;">
+        <a class="btn" href="/brands/new">{{ m.icon("plus") }} Start Onboarding: Add Brand</a>
+      </div>
     </div>
     {% else %}
     <div class="empty">

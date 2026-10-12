@@ -139,6 +139,24 @@
     });
   }
 
+  /* Bulk false-positive confirmation (CSP compliant, no inline script) */
+  function initBulk() {
+    var bulkForm = document.querySelector('form[action="/findings/bulk"]');
+    if (bulkForm) {
+      bulkForm.addEventListener('submit', function (e) {
+        var checked = document.querySelectorAll('.rowcheck:checked');
+        if (checked.length === 0) {
+          e.preventDefault();
+          window.alert('Please select at least one finding to mark as false positive.');
+          return;
+        }
+        if (!window.confirm('Are you sure you want to mark ' + checked.length + ' selected finding(s) as false positives?')) {
+          e.preventDefault();
+        }
+      });
+    }
+  }
+
   /* Forms: confirmation prompts and busy buttons ------------------------------------------------ */
   function initForms() {
     document.addEventListener('submit', function (e) {
@@ -281,6 +299,7 @@
     initFlashes();
     initCopy();
     initRemembered();
+    initBulk();
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

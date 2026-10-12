@@ -18,6 +18,7 @@ router = APIRouter()
 
 
 @router.get("/")
+@router.get("/dashboard")
 def dashboard(request: Request, user: User = Depends(current_user), db: Session = Depends(get_db)):
     brands = list(db.scalars(scoped(Brand, user.org_id).order_by(Brand.name)))
     queue = list(db.scalars(scoped(Finding, user.org_id).where(Finding.in_triage.is_(True), Finding.status == "new")

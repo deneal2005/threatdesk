@@ -2,7 +2,12 @@
 from __future__ import annotations
 
 import re
-from datetime import UTC, date, datetime
+from datetime import date, datetime, timezone
+
+try:
+    from datetime import UTC
+except ImportError:
+    UTC = timezone.utc
 
 _FORMATS = ("%Y-%m-%dT%H:%M:%S.%f%z", "%Y-%m-%dT%H:%M:%S%z", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%d %H:%M:%S",
             "%Y-%m-%d", "%b %d, %Y", "%B %d, %Y", "%d %b %Y", "%Y%m%d%H%M%S", "%Y%m%d")

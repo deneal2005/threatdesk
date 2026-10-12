@@ -17,8 +17,8 @@
   <div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Email</th><th class="tight">Role</th><th class="tight hide-sm">Joined</th></tr></thead>
-        <tbody>{% for u in users %}<tr><td>{{ u.email }}{% if u.id == user.id %} <span class="faint">(you)</span>{% endif %}</td><td class="tight">{{ u.role|capitalize }}</td><td class="tight faint hide-sm">{{ u.created|dt }}</td></tr>{% endfor %}</tbody>
+        <thead><tr><th>Email</th><th class="tight">Role</th><th class="tight hide-sm">Joined</th>{% if admin %}<th class="tight"><span class="sr">Actions</span></th>{% endif %}</tr></thead>
+        <tbody>{% for u in users %}<tr><td>{{ u.email }}{% if u.id == user.id %} <span class="faint">(you)</span>{% endif %}</td><td class="tight">{{ u.role|capitalize }}</td><td class="tight faint hide-sm">{{ u.created|dt }}</td>{% if admin %}<td class="tight">{% if u.id != user.id %}<form method="post" action="/settings/users/{{ u.id }}/delete" data-confirm="Remove {{ u.email }} from this organisation?">{{ m.csrf() }}<button class="btn danger sm" type="submit">Remove</button></form>{% endif %}</td>{% endif %}</tr>{% endfor %}</tbody>
       </table>
     </div>
     {% if admin %}
@@ -91,13 +91,24 @@
 </section>
 
 <section class="form-section" id="integrations">
-  <div class="about"><h3>Connected services</h3><p>Set on the server through environment variables. Values are never shown here.</p></div>
+  <div class="about">
+    <h3>Connected Services &amp; Adapters</h3>
+    <p>Integration health across intelligence feeds, search engines, and scrapers. Unset credentials safely fall back to heuristic analyzers or public registries.</p>
+  </div>
   <div>
     <ul class="rows sheet">
-      {% for name, env, on in integrations %}
-      <li><span class="source-state {{ 'ok' if on else 'off' }}" aria-hidden="true"></span>
-        <span class="grow">{{ name }}<span class="cell-sub mono">{{ env }}</span></span>
-        <span class="cs cs-{{ 'ran' if on else 'not_configured' }}">{{ "Connected" if on else "Not set up" }}</span></li>
+      {% for item in integrations %}
+      <li>
+        <span class="source-state {{ 'ok' if item.on else 'off' }}" aria-hidden="true"></span>
+        <span class="grow">
+          <strong>{{ item.name }}</strong>
+          <span class="cell-sub"><span class="mono">{{ item.env }}</span> · {{ item.category }}</span>
+          <span class="cell-sub muted">{{ item.note }}</span>
+        </span>
+        <span class="cs cs-{{ 'ran' if item.on else 'not_configured' }}">
+          {{ "Connected" if item.on else "Not Configured" }}
+        </span>
+      </li>
       {% endfor %}
     </ul>
   </div>
