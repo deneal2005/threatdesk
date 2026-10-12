@@ -216,6 +216,29 @@ async def scan_now(brand_id: int, request: Request, user: User = Depends(current
     return _after_scan(back, brand, started)
 
 
+@router.post("/brands/{brand_id:int}/scan/stop", dependencies=[CSRF])
+async def scan_stop(brand_id: int, request: Request, user: User = Depends(current_user),
+                    db: Session = Depends(get_db)):
+    """Stop the brand's running scan and everything it queued that hasn't finished."""
+    brand = get_owned(db, Brand, brand_id, user.org_id)
+    stopped = scanrun.stop(db, brand, user.id)
+    db.commit()
+    back = str((await request.form()).get("back") or "")
+    if request.headers.get("hx-request"):
+        return brand_scan_panel(request, db, brand, compact=back == "dashboard")
+    m = "scan_stopped" if stopped else "scan_not_running"
+    return RedirectResponse(f"/?m={m}" if back == "dashboard" else f"/brands/{brand.id}?m={m}", status_code=303)
+
+
+@router.get("/brands/{brand_id:int}/scan/button")
+def scan_button(brand_id: int, request: Request, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """The header scan button alone, for tabs without the progress panel: it polls itself while a scan runs."""
+    brand = get_owned(db, Brand, brand_id, user.org_id)
+    p = scanrun.progress(db, brand)
+    return render(request, "_scan_button.html", {"brand": brand, "scan_running": bool(p and p.active),
+                                                 "self_poll": True})
+
+
 @router.post("/scan-all", dependencies=[CSRF])
 def scan_all(user: User = Depends(current_user), db: Session = Depends(get_db)):
     started = [scanrun.start(db, b, user.id)[1] for b in db.scalars(scoped(Brand, user.org_id))]

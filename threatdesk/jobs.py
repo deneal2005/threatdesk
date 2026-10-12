@@ -3,6 +3,7 @@
 State machine: queued -> running -> done
                                  -> queued (retry, attempts < max_attempts, run_after = now + backoff)
                                  -> failed (attempts exhausted)
+queued | running -> cancelled (a person stopped it; a running handler finishes, but its result is not recorded)
 Startup: running -> queued (the previous process died mid-job).
 """
 from __future__ import annotations
@@ -46,7 +47,7 @@ def claim_next(db: Session, types: list[str] | None = None) -> Job | None:
 
 
 def finish(db: Session, job_id: int, result: dict | None = None) -> None:
-    db.execute(update(Job).where(Job.id == job_id).values(status="done", finished=utcnow(), result=result, error=None))
+    db.execute(update(Job).where(Job.id == job_id, Job.status != "cancelled").values(status="done", finished=utcnow(), result=result, error=None))
     db.commit()
 
 
@@ -55,6 +56,8 @@ def fail(db: Session, job_id: int, error: str) -> str:
     job = db.get(Job, job_id)
     if job is None:
         return "missing"
+    if job.status == "cancelled":            # stopped while it ran: never requeue it
+        return job.status
     job.error = error[:1000]
     if job.attempts < job.max_attempts:
         delay = BACKOFF_SECONDS[min(job.attempts - 1, len(BACKOFF_SECONDS) - 1)]
@@ -63,6 +66,15 @@ def fail(db: Session, job_id: int, error: str) -> str:
         job.status, job.finished = "failed", utcnow()
     db.commit()
     return job.status
+
+
+def cancel(db: Session, job_ids: list[int], reason: str = "Stopped") -> int:
+    """Stop queued or running jobs. Returns how many were stopped; finished jobs are left as they are."""
+    if not job_ids:
+        return 0
+    res = db.execute(update(Job).where(Job.id.in_(job_ids), Job.status.in_(["queued", "running"]))
+                     .values(status="cancelled", finished=utcnow(), error=reason))
+    return res.rowcount or 0
 
 
 def reset_stale(db: Session, older_than_seconds: int | None = None) -> int:

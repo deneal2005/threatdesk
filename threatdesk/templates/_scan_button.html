@@ -1,8 +1,19 @@
 {# A brand's scan button (brand header, or the dashboard when there is one brand). Re-rendered out of band by the
-   progress poll, so it re-enables by itself when the scan ends. #}
+   progress poll, so it re-enables by itself when the scan ends. Where no progress panel is on the page (the brand's
+   other tabs) it polls itself instead (self_poll). While a scan runs it comes with a Stop button. #}
 {% import "macros.html" as m with context %}
-<form id="scan-btn-{{ brand.id }}" method="post" action="/brands/{{ brand.id }}/scan" class="quick-scan-form"{% if oob_button %} hx-swap-oob="true"{% endif %}>{{ m.csrf() }}
-  {% if compact %}<input type="hidden" name="back" value="dashboard">{% endif %}
-  {% if scan_running %}<button class="btn" disabled title="A scan for this brand is queued or running">{{ m.icon("scan") }}Scan running…</button>
-  {% else %}<button class="btn" title="Find look-alikes of {{ brand.name }}, investigate each one and check its unverified assets">{{ m.icon("scan") }}{% if compact %}Scan {{ brand.name }} now{% else %}Scan now{% endif %}</button>{% endif %}
-</form>
+<div id="scan-btn-{{ brand.id }}" class="scan-btn-group"{% if oob_button %} hx-swap-oob="true"{% endif %}
+  {% if self_poll and scan_running %}hx-get="/brands/{{ brand.id }}/scan/button" hx-trigger="every 3s" hx-swap="outerHTML"{% endif %}>
+  <form method="post" action="/brands/{{ brand.id }}/scan" class="quick-scan-form">{{ m.csrf() }}
+    {% if compact %}<input type="hidden" name="back" value="dashboard">{% endif %}
+    {% if scan_running %}<button class="btn" disabled title="A scan for this brand is queued or running">{{ m.icon("scan") }}Scan running…</button>
+    {% else %}<button class="btn" title="Find look-alikes of {{ brand.name }}, investigate each one and check its unverified assets">{{ m.icon("scan") }}{% if compact %}Scan {{ brand.name }} now{% else %}Scan now{% endif %}</button>{% endif %}
+  </form>
+  {% if scan_running %}
+  <form method="post" action="/brands/{{ brand.id }}/scan/stop" class="quick-scan-form"
+        data-confirm="Stop the scan of {{ brand.name }}? Findings it already saved are kept.">{{ m.csrf() }}
+    {% if compact %}<input type="hidden" name="back" value="dashboard">{% endif %}
+    <button class="btn danger" title="Stop discovery and every investigation and check this scan has not finished">Stop scan</button>
+  </form>
+  {% endif %}
+</div>

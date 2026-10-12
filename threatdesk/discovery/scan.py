@@ -13,7 +13,7 @@ from threatdesk.db import session_scope, utcnow
 from threatdesk.discovery import sources
 from threatdesk.discovery.websearch import src_websearch
 from threatdesk.handlers import load_brand_ctx
-from threatdesk.models import Brand
+from threatdesk.models import Brand, Job
 from threatdesk.persistence import save_report
 
 SCAN_BUDGET = 100
@@ -39,6 +39,8 @@ def _persist(org_id: int, brand_id: int, url_lists: dict[str, list[str]], search
         brand = db.scalar(select(Brand).where(Brand.id == brand_id, Brand.org_id == org_id))
         if brand is None:                      # deleted while the scan ran: leave nothing behind
             return {"skipped": "brand deleted during the scan", "enqueued": 0, "search_findings_new": 0}
+        if scan_id and db.scalar(select(Job.status).where(Job.id == scan_id)) == "cancelled":
+            return {"skipped": "scan stopped", "enqueued": 0, "search_findings_new": 0}     # stopped mid-discovery
         brand.last_scan_at = utcnow()
         seen: set[str] = set()
         for name, urls in url_lists.items():

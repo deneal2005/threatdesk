@@ -141,7 +141,7 @@ def test_failed_discovery_is_reported_not_hidden(monkeypatch):
     monkeypatch.setattr(checking, "_run", no_network)
     _run(_jobs("verify_asset")[0])
     part = c.get(f"/brands/{bid}/scan/progress").text
-    assert "Scan stopped" in part and "upstream down" in part and "Try again" in part and "every 2s" not in part
+    assert "Scan failed" in part and "upstream down" in part and "Try again" in part and "every 2s" not in part
 
 
 def test_dashboard_scan_returns_to_dashboard_and_scan_all():
@@ -259,3 +259,97 @@ def test_dashboard_button_follows_the_scan_when_one_brand():
     assert "Scan running…" in dash and "compact=1&amp;button=1" in dash
     part = c.get(f"/brands/{bid}/scan/progress?compact=1&button=1", headers={"HX-Request": "true"}).text
     assert f'id="scan-btn-{bid}"' in part and 'name="back" value="dashboard"' in part and "hx-swap-oob" in part
+
+
+def _stop(c, bid, **extra):
+    return c.post(f"/brands/{bid}/scan/stop", data={"csrf_token": csrf(c, f"/brands/{bid}"), **extra})
+
+
+def test_stop_a_queued_scan_then_start_again():
+    c = make_client()
+    signup(c)
+    bid = _brand(c)
+    _scan(c, bid)
+    page = c.get(f"/brands/{bid}").text
+    assert f'action="/brands/{bid}/scan/stop"' in page and "Stop scan" in page
+    with db.session_scope() as s:
+        assert {w.verification_status for w in s.scalars(select(BrandWebsite))} == {"pending"}
+    r = _stop(c, bid)
+    assert r.status_code == 303 and "m=scan_stopped" in r.headers["location"]
+    assert {j[5] for j in _jobs()} == {"cancelled"}                          # discovery and both asset checks
+    with db.session_scope() as s:                                             # no asset left stuck on "pending"
+        assert {w.verification_status for w in s.scalars(select(BrandWebsite))} == {"unverified"}
+        assert {a.verification_status for a in s.scalars(select(BrandSocialAccount))} == {"unverified"}
+    page = c.get(f"/brands/{bid}").text
+    assert "Scan stopped" in page and "Scan running" not in page and "every 2s" not in page
+    assert "Stop scan" not in page and "Start a new scan" in page
+    assert "m=scan_not_running" in _stop(c, bid).headers["location"]          # nothing left to stop
+    r = _scan(c, bid)                                                         # and it can be restarted
+    assert "m=queued" in r.headers["location"]
+    assert len(_jobs("scan")) == 2 and _jobs("scan")[-1][5] == "queued"
+    assert [j[5] for j in _jobs("verify_asset")][-2:] == ["queued", "queued"]
+
+
+def test_stop_during_discovery_queues_no_leads(monkeypatch):
+    c = make_client()
+    signup(c)
+    bid = _brand(c, profiles="")
+    _fake_sources(monkeypatch, ["https://acmebank-kyc.xyz/"])
+    _scan(c, bid)
+    scan = _jobs("scan")[0]
+    with db.session_scope() as s:
+        s.get(Job, scan[0]).status = "running"
+    part = c.post(f"/brands/{bid}/scan/stop", data={"csrf_token": csrf(c, f"/brands/{bid}")},
+                  headers={"HX-Request": "true"}).text
+    assert "Scan stopped" in part and "every 2s" not in part and "Stopped before discovery finished" in part
+    asyncio.run(Worker(concurrency=1).run_one(*scan[:5]))                     # the in-flight discovery completes
+    assert _jobs("investigate") == []                                          # but queues nothing
+    assert _jobs("scan")[0][5] == "cancelled"                                  # and doesn't overwrite the stop
+
+
+def test_stop_during_investigations_and_from_the_dashboard(monkeypatch):
+    c = make_client()
+    signup(c)
+    bid = _brand(c, profiles="")
+    _fake_sources(monkeypatch, ["https://acmebank-kyc.xyz/", "https://acme-bank.top/"])
+    _scan(c, bid)
+    _run(_jobs("scan")[0])
+    dash = c.get("/").text
+    assert f'action="/brands/{bid}/scan/stop"' in dash
+    r = _stop(c, bid, back="dashboard")
+    assert r.headers["location"] == "/?m=scan_stopped"
+    assert {j[5] for j in _jobs("investigate")} == {"cancelled"}
+    assert _jobs("scan")[0][5] == "done"                                       # discovery itself had finished
+    part = c.get(f"/brands/{bid}/scan/progress").text
+    assert "Scan stopped" in part and "2 stopped" in part and "Scan finished" not in part
+
+
+def test_header_button_polls_itself_on_other_tabs():
+    c = make_client()
+    signup(c)
+    bid = _brand(c)
+    _scan(c, bid)
+    page = c.get(f"/brands/{bid}?tab=websites").text
+    assert f'hx-get="/brands/{bid}/scan/button"' in page and "Stop scan" in page
+    assert f'hx-get="/brands/{bid}/scan/button"' not in c.get(f"/brands/{bid}").text   # the panel drives it there
+    _stop(c, bid)
+    btn = c.get(f"/brands/{bid}/scan/button").text
+    assert "Scan now" in btn and "hx-get" not in btn and "Stop scan" not in btn
+
+
+def test_cancelled_job_is_never_requeued_or_finished():
+    with db.session_scope() as s:
+        from threatdesk.models import Org
+        o = Org(name="O")
+        s.add(o)
+        s.flush()
+        jid = jobs.enqueue(s, "investigate", {"url": "https://x.com"}, o.id).id
+    with db.session_scope() as s:
+        assert jobs.claim_next(s).id == jid
+        assert jobs.cancel(s, [jid]) == 1
+        s.commit()
+        assert jobs.fail(s, jid, "boom") == "cancelled"
+        jobs.finish(s, jid, {"ok": True})
+        s.expire_all()
+        assert s.get(Job, jid).status == "cancelled" and s.get(Job, jid).result is None
+        assert jobs.claim_next(s) is None

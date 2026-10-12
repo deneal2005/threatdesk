@@ -12,7 +12,7 @@
     <a class="btn ghost" href="/findings?brand_id={{ brand.id }}">Findings</a>
     <a class="btn ghost" href="/reports/brand/{{ brand.id }}">Summary</a>
     <a class="btn quiet" href="/brands/{{ brand.id }}/edit">Brand settings</a>
-    {% include "_scan_button.html" %}
+    {% with self_poll=(tab != "overview") %}{% include "_scan_button.html" %}{% endwith %}
   </div>
 </header>
 <nav class="tabs brand-tabs" aria-label="Brand sections">

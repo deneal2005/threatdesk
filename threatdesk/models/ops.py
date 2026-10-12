@@ -15,7 +15,7 @@ class Job(Base):
     org_id: Mapped[int | None] = mapped_column(ForeignKey("orgs.id"), nullable=True, index=True)
     type: Mapped[str] = mapped_column(String(24))            # investigate | scan | intake_text | verify_asset
     payload: Mapped[dict] = mapped_column(JSON, default=dict)
-    status: Mapped[str] = mapped_column(String(10), default="queued", index=True)   # queued|running|done|failed
+    status: Mapped[str] = mapped_column(String(10), default="queued", index=True)   # queued|running|done|failed|cancelled
     attempts: Mapped[int] = mapped_column(Integer, default=0)
     max_attempts: Mapped[int] = mapped_column(Integer, default=3)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
