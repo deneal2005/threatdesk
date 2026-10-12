@@ -108,3 +108,29 @@ def test_teammate_added_by_admin_only():
     c.post("/login", data={"email": "ana@example.com", "password": "teammate pass 1", "csrf_token": tok})
     r = post(c, "/settings/users", {"email": "x@example.com", "password": "teammate pass 2"}, page="/")
     assert r.status_code == 403
+
+
+def test_welcome_login_page_and_assets():
+    c = make_client()
+    r = c.get("/login")
+    assert r.status_code == 200
+    assert "Sign in to ThreatDesk" in r.text and 'id="loaderOverlay"' in r.text
+    assert 'name="csrf_token"' in r.text and 'action="/login"' in r.text and 'href="/signup"' in r.text
+    for path, kind in (("/static/welcome/welcome.css", "text/css"), ("/static/welcome/welcome.js", "javascript"),
+                       ("/static/welcome/logo.png", "image/png"), ("/static/welcome/mountains.jpg", "image/jpeg"),
+                       ("/static/welcome/loader.mp4", "video/mp4")):
+        a = c.get(path)
+        assert a.status_code == 200 and kind in a.headers["content-type"], path
+
+
+def test_welcome_intro_skipped_after_failed_login():
+    c = make_client()
+    tok = csrf(c, "/login")
+    r = c.post("/login", data={"email": "nobody@example.com", "password": "wrong password!", "csrf_token": tok})
+    assert r.status_code == 400 and "Wrong email or password." in r.text
+    assert 'id="loaderOverlay"' not in r.text and 'class="container loaded"' in r.text
+
+
+def test_logged_out_message_on_welcome_page():
+    r = make_client().get("/login?m=loggedout")
+    assert "You're logged out." in r.text or "You&#39;re logged out." in r.text
