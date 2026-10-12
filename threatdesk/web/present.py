@@ -270,9 +270,11 @@ def scan_source_badge(text: str | None, candidates: int = 0) -> dict[str, str]:
     return {"class": "off", "icon": "•", "label": "Pending", "summary": text or ""}
 
 
+from threatdesk.web.explain_data import sev_badge, status_icon
+
 FILTERS = {
     "scan_source": scan_source, "scan_status": scan_status, "scan_source_badge": scan_source_badge,
-    "status": status_label, "kind": kind_label,
+    "status": status_label, "status_icon": status_icon, "kind": kind_label,
     "check": check_label, "check_status": check_status_label, "evidence_kind": evidence_label,
-    "indicator": indicator_label, "source": source_label,
+    "indicator": indicator_label, "source": source_label, "sev_badge": sev_badge,
 }

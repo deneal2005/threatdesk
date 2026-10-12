@@ -7,40 +7,158 @@
 <meta name="color-scheme" content="light">
 <title>{% block title %}ThreatDesk{% endblock %}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="/static/app.css?v={{ asset_version('app.css') }}">
 <script src="https://unpkg.com/htmx.org@1.9.12/dist/htmx.min.js" defer></script>
+<script src="/static/app.js?v={{ asset_version('app.js') }}" defer></script>
 </head>
 <body hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'>
 <a class="skip" href="#content">Skip to content</a>
 {% if user %}
 {% set cur_path = request.url.path %}
 <div class="shell">
-  <nav class="rail-nav" aria-label="Main">
-    <a href="/" class="wordmark">{{ m.mark() }}<b>ThreatDesk</b></a>
-    <ul class="nav">
-      <li><a href="/" {% if cur_path == "/" %}aria-current="page"{% endif %}>{{ m.icon("overview") }}<span class="lbl">Overview</span></a></li>
-      <li><a href="/investigate" {% if cur_path.startswith("/investigate") %}aria-current="page"{% endif %}>{{ m.icon("investigate") }}<span class="lbl">Investigate</span></a></li>
-      <li><a href="/findings" {% if cur_path.startswith("/findings") %}aria-current="page"{% endif %}>{{ m.icon("findings") }}<span class="lbl">Findings</span>{% if new_count %}<span class="count hot" title="{{ new_count }} new">{{ new_count }}</span>{% endif %}</a></li>
-      <li><a href="/brands" {% if cur_path.startswith("/brands") %}aria-current="page"{% endif %}>{{ m.icon("brands") }}<span class="lbl">Brands</span></a></li>
-      <li><a href="/campaigns" {% if cur_path.startswith("/campaigns") %}aria-current="page"{% endif %}>{{ m.icon("campaigns") }}<span class="lbl">Campaigns</span></a></li>
-      <li><a href="/reports" {% if cur_path.startswith("/reports") %}aria-current="page"{% endif %}>{{ m.icon("reports") }}<span class="lbl">Reports</span></a></li>
-    </ul>
+  <div class="sidebar-backdrop" aria-hidden="true"></div>
+  <nav class="rail-nav" id="sidebar-nav" aria-label="Main Navigation">
+    <div class="sidebar-top">
+      <a href="/" class="wordmark" title="ThreatDesk · Digital Risk Protection">{{ m.mark() }}<b>ThreatDesk</b></a>
+      <button class="drawer-close hide-desktop" type="button" aria-label="Close navigation">
+        {{ m.icon("close") }}
+      </button>
+    </div>
+
+    <div class="sidebar-body">
+      <div class="nav-group">
+        <span class="nav-group-title">WORKSPACE</span>
+        <ul class="nav">
+          <li>
+            <a href="/" {% if cur_path == "/" %}aria-current="page"{% endif %} title="Operational Overview">
+              {{ m.icon("overview") }}<span class="lbl">Dashboard</span>
+            </a>
+          </li>
+          <li>
+            <a href="/findings" {% if cur_path.startswith("/findings") and "status=takedown" not in request.url.query %}aria-current="page"{% endif %} title="Triage Queue &amp; Detected Threats">
+              {{ m.icon("findings") }}<span class="lbl">Findings</span>
+              {% if new_count %}<span class="count hot" title="{{ new_count }} new">{{ new_count }}</span>{% endif %}
+            </a>
+          </li>
+          <li>
+            <a href="/investigate" {% if cur_path.startswith("/investigate") %}aria-current="page"{% endif %} title="Inspect Any Suspicious Link, App, or Profile">
+              {{ m.icon("investigate") }}<span class="lbl">Investigate</span>
+            </a>
+          </li>
+          <li>
+            <span class="nav-item nav-disabled" title="Automated discovery runs continuously per protected brand">
+              {{ m.icon("scan") }}<span class="lbl">Discovery</span>
+              <span class="nav-tag faint">Auto</span>
+            </span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="nav-group">
+        <span class="nav-group-title">INTELLIGENCE</span>
+        <ul class="nav">
+          <li>
+            <a href="/brands" {% if cur_path.startswith("/brands") %}aria-current="page"{% endif %} title="Protected Domains, Profiles, Apps &amp; Allowlists">
+              {{ m.icon("brands") }}<span class="lbl">Assets &amp; Brands</span>
+            </a>
+          </li>
+          <li>
+            <a href="/campaigns" {% if cur_path.startswith("/campaigns") %}aria-current="page"{% endif %} title="Correlated Threat Clusters &amp; Shared Infrastructure">
+              {{ m.icon("campaigns") }}<span class="lbl">Cases</span>
+            </a>
+          </li>
+          <li>
+            <a href="/reports" {% if cur_path.startswith("/reports") %}aria-current="page"{% endif %} title="Executive Intelligence Summaries &amp; CSV Exports">
+              {{ m.icon("reports") }}<span class="lbl">Reports</span>
+            </a>
+          </li>
+          <li>
+            <a href="/findings?status=takedown_requested" {% if "status=takedown_requested" in request.url.query %}aria-current="page"{% endif %} title="Pending Takedown Packets &amp; Remediation">
+              {{ m.icon("takedown") }}<span class="lbl">Actions</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <div class="nav-group">
+        <span class="nav-group-title">ORGANIZATION</span>
+        <ul class="nav">
+          <li>
+            <a href="/settings#team" {% if cur_path == "/settings" %}aria-current="page"{% endif %} title="Security Team &amp; Access Controls">
+              {{ m.icon("team") }}<span class="lbl">Team</span>
+            </a>
+          </li>
+          <li>
+            <a href="/notifications" {% if cur_path.startswith("/notifications") %}aria-current="page"{% endif %} title="Security Alerts &amp; Critical Findings">
+              {{ m.icon("alerts") }}<span class="lbl">Alerts</span>
+              {% if unread %}<span class="count" title="{{ unread }} unread">{{ unread }}</span>{% endif %}
+            </a>
+          </li>
+          <li>
+            <a href="/settings" {% if cur_path == "/settings" %}aria-current="page"{% endif %} title="Organization Settings, Integrations &amp; API Keys">
+              {{ m.icon("settings") }}<span class="lbl">Settings</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+
     <div class="nav-foot">
-      <ul class="nav">
-        <li><a href="/notifications" {% if cur_path.startswith("/notifications") %}aria-current="page"{% endif %}>{{ m.icon("alerts") }}<span class="lbl">Alerts</span>{% if unread %}<span class="count" title="{{ unread }} unread">{{ unread }}</span>{% endif %}</a></li>
-        <li><a href="/settings" {% if cur_path.startswith("/settings") %}aria-current="page"{% endif %}>{{ m.icon("settings") }}<span class="lbl">Settings</span></a></li>
-      </ul>
-      <div class="who">{{ user.email }}</div>
-      <form method="post" action="/logout">{{ m.csrf() }}<button>{{ m.icon("logout") }}<span class="lbl">Log out</span></button></form>
+      <div class="user-profile">
+        <div class="user-avatar" aria-hidden="true">{{ user.email[0]|upper }}</div>
+        <div class="user-info">
+          <span class="who" title="{{ user.email }}">{{ user.email }}</span>
+          <span class="user-role">{{ user.role|upper if user.role else "ANALYST" }}</span>
+        </div>
+      </div>
+      <form method="post" action="/logout">{{ m.csrf() }}<button type="submit" class="logout-btn" title="Sign out of ThreatDesk">{{ m.icon("logout") }}<span class="lbl">Log out</span></button></form>
     </div>
   </nav>
-  <main class="main" id="content">
-    {% if msg %}<p class="flash" role="status">{{ msg }}</p>{% endif %}
-    {% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
-    {% block content %}{% endblock %}
-  </main>
+
+  <div class="shell-content">
+    <header class="app-topbar" aria-label="Application Header">
+      <div class="topbar-left">
+        <button class="drawer-toggle hide-desktop" type="button" aria-label="Open navigation menu">
+          {{ m.icon("menu") }}
+        </button>
+        <div class="topbar-context">
+          <span class="context-tag">WORKSPACE</span>
+          <span class="context-name">ThreatDesk</span>
+        </div>
+      </div>
+
+      <div class="topbar-search">
+        <form method="get" action="/findings" class="topbar-search-form" role="search">
+          <label for="global-search" class="sr">Search findings</label>
+          <div class="topbar-search-wrap">
+            {{ m.icon("search") }}
+            <input id="global-search" type="search" name="q" placeholder="Search suspicious domains, URLs, or targets..." autocomplete="off">
+            <kbd class="kbd-hint" aria-hidden="true">⌘K</kbd>
+          </div>
+        </form>
+      </div>
+
+      <div class="topbar-actions">
+        <a href="/notifications" class="topbar-btn" title="Security alerts">
+          {{ m.icon("alerts") }}
+          {% if unread %}<span class="topbar-dot" aria-label="{{ unread }} unread alerts"></span>{% endif %}
+        </a>
+        <a href="/investigate" class="btn quiet sm topbar-investigate" title="Instant URL investigation">
+          {{ m.icon("investigate") }}<span>Investigate</span>
+        </a>
+        <a href="/settings" class="topbar-avatar" title="{{ user.email }} · Organization Settings">
+          <span>{{ user.email[0]|upper }}</span>
+        </a>
+      </div>
+    </header>
+
+    <main class="main" id="content">
+      {% if msg %}<p class="flash" role="status">{{ msg }}</p>{% endif %}
+      {% if error %}<p class="alert" role="alert">{{ error }}</p>{% endif %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
 </div>
 {% else %}
 <div class="plain">

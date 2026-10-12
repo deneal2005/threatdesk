@@ -21,6 +21,8 @@ CHECK_ORDER = [
 ]
 
 
+from threatdesk.web.explain import GLOSSARY, explain_finding
+
 def report_context(db: Session, f: Finding) -> dict:
     checks = list(db.scalars(select(CheckResult).where(CheckResult.finding_id == f.id)))
     order = {c: i for i, c in enumerate(CHECK_ORDER)}
@@ -41,7 +43,9 @@ def report_context(db: Session, f: Finding) -> dict:
     counts = {"ran": sum(c.status == "ran" for c in checks),
               "not_possible": sum(c.status == "not_possible" for c in checks),
               "not_configured": sum(c.status == "not_configured" for c in checks), "total": len(checks)}
+    explanation = explain_finding(f, brand, signals, checks, counts, evidence, indicators)
     return {"f": f, "checks": checks, "signals": signals, "positives": [s for s in signals if s.points > 0],
             "negatives": [s for s in signals if s.points < 0], "evidence": evidence, "indicators": indicators,
             "events": events, "users": users, "emails": {u.id: u.email for u in users}, "brand": brand,
-            "intakes": intakes, "rules": RULES, "counts": counts}
+            "intakes": intakes, "rules": RULES, "counts": counts, "explanation": explanation,
+            "glossary": GLOSSARY}
