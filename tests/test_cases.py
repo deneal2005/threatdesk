@@ -1,3 +1,4 @@
+import re
 from datetime import timedelta
 
 from sqlalchemy import select
@@ -5,7 +6,7 @@ from sqlalchemy import select
 from threatdesk import db
 from threatdesk.cases import whitelist_value
 from threatdesk.metrics import dashboard_metrics
-from threatdesk.models import AssetWhitelist, CaseEvent, Finding
+from threatdesk.models import AssetWhitelist, CaseEvent, Finding, User
 from tests.brandhelp import make_brand, make_user, org_of
 from tests.helpers import csrf, make_client, signup
 
@@ -110,6 +111,37 @@ def test_dashboard_metrics_and_new_since_visit():
     _finding(oid, key="host:c.example")
     page = c.get("/findings?since=1&view=all").text
     assert "c[.]example" in page and "a[.]example" not in page
+
+
+def test_new_since_visit_filter_survives_the_page_it_is_applied_from():
+    c = make_client()
+    signup(c)
+    oid = org_of("a@example.com")
+    old = _finding(oid, key="host:old.example")
+    with db.session_scope() as s:
+        s.get(Finding, old).first_seen -= timedelta(hours=10)
+    c.get("/findings")                                          # previous visit
+    with db.session_scope() as s:
+        u = s.scalars(select(User)).first()
+        u.last_findings_visit -= timedelta(hours=1)             # it was a while ago
+    _finding(oid, key="host:fresh.example")
+    page = c.get("/findings").text                              # this visit stamps "now"; the form keeps the old time
+    value = re.search(r'name="since" value="(\d+)"', page).group(1)
+    page = c.get(f"/findings?view=all&since={value}").text      # what ticking the box and pressing Apply submits
+    assert "fresh[.]example" in page and "old[.]example" not in page
+    assert f"since={value}" in page                             # tabs and search keep the same cut-off
+
+
+def test_discovery_view_lists_every_scan_source():
+    c = make_client()
+    signup(c)
+    oid = org_of("a@example.com")
+    _finding(oid, key="host:scan.example", source="discovery:web_search")
+    _finding(oid, key="host:told.example", source="report_form")
+    page = c.get("/findings?view=all&source=discovery").text
+    assert "scan[.]example" in page and "told[.]example" not in page
+    page = c.get("/findings?q=nothing-like-this").text         # a search with no hits is not "no findings yet"
+    assert "No findings match these filters" in page and "No findings yet" not in page
 
 
 def test_finding_routes_isolated():
