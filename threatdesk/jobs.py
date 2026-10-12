@@ -65,9 +65,14 @@ def fail(db: Session, job_id: int, error: str) -> str:
     return job.status
 
 
-def reset_stale(db: Session) -> int:
-    """At startup every 'running' job belongs to a dead process: put it back in the queue."""
-    res = db.execute(update(Job).where(Job.status == "running").values(status="queued", run_after=utcnow()))
+def reset_stale(db: Session, older_than_seconds: int | None = None) -> int:
+    """At startup every 'running' job belongs to a dead process: put it back in the queue.
+    Serverless hosts pass older_than_seconds: other instances may be running jobs right now, so only jobs
+    running far longer than the job timeout (their function instance was stopped) are requeued."""
+    q = update(Job).where(Job.status == "running")
+    if older_than_seconds is not None:
+        q = q.where(Job.started < utcnow() - timedelta(seconds=older_than_seconds))
+    res = db.execute(q.values(status="queued", run_after=utcnow()))
     db.commit()
     return res.rowcount or 0
 

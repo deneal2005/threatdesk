@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -28,6 +29,29 @@ def _migrate_brand_assets() -> None:
             log.info("brand assets migrated", extra=kv(rows=made))
     except Exception:
         log.exception("brand asset migration failed; brands keep their previous official lists")
+
+
+def _scrub_breadcrumb(crumb: dict, _hint: dict) -> dict:
+    """Outbound HTTP breadcrumbs: some reputation APIs take their key in the query string."""
+    data = crumb.get("data") or {}
+    data.pop("http.query", None)
+    if isinstance(data.get("url"), str):
+        data["url"] = data["url"].split("?", 1)[0]
+    return crumb
+
+
+def init_sentry() -> bool:
+    """Error reporting when SENTRY_DSN is set. No request bodies, cookies or user details are sent."""
+    settings = get_settings()
+    if not settings.sentry_dsn or settings.testing:
+        return False
+    import sentry_sdk
+    sentry_sdk.init(
+        dsn=settings.sentry_dsn, environment=os.getenv("VERCEL_ENV") or settings.env,
+        release=os.getenv("VERCEL_GIT_COMMIT_SHA") or None, send_default_pii=False, max_request_body_size="never",
+        traces_sample_rate=float(os.getenv("SENTRY_TRACES_SAMPLE_RATE") or 0), before_breadcrumb=_scrub_breadcrumb,
+    )
+    return True
 
 
 @asynccontextmanager
@@ -58,6 +82,7 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     get_settings()
+    init_sentry()
     app = FastAPI(title="ThreatDesk", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
     middleware.install(app)
     app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")), name="static")

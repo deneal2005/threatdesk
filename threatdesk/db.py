@@ -1,16 +1,15 @@
 """Engine, sessions and table creation. PostgreSQL in all real deployments; SQLite only in tests."""
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime
 
-import logging
-
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.pool import NullPool, StaticPool
 
 from threatdesk.config import get_settings
 
@@ -34,8 +33,12 @@ def make_engine(url: str) -> Engine:
     if url.startswith("sqlite"):
         return create_engine(url, connect_args={"check_same_thread": False}, poolclass=StaticPool)
     # prepare_threshold=None: required for Supabase's transaction pooler (pgbouncer), harmless elsewhere.
+    connect_args = {"prepare_threshold": None, "connect_timeout": 10}
+    if get_settings().serverless:
+        # Short-lived function instances: let the external pooler (Supabase/Neon) own the connections.
+        return create_engine(url, poolclass=NullPool, connect_args=connect_args)
     return create_engine(url, pool_pre_ping=True, pool_size=5, max_overflow=5, pool_recycle=300,
-                         pool_timeout=10, connect_args={"prepare_threshold": None, "connect_timeout": 10})
+                         pool_timeout=10, connect_args=connect_args)
 
 
 def get_engine() -> Engine:
@@ -57,10 +60,22 @@ def reset_engine(url: str | None = None) -> Engine:
 
 
 def create_all() -> list[str]:
+    global _schema_ready
     import threatdesk.models  # noqa: F401  (registers tables)
     engine = get_engine()
     Base.metadata.create_all(engine)
-    return add_missing_columns(engine)
+    added = add_missing_columns(engine)
+    _schema_ready = True
+    return added
+
+
+_schema_ready = False
+
+
+def ensure_schema() -> None:
+    """Serverless hosts may skip the lifespan startup on some instances: create tables on first use instead."""
+    if not _schema_ready and get_settings().serverless:
+        create_all()
 
 
 def add_missing_columns(engine: Engine) -> list[str]:
@@ -88,6 +103,7 @@ def add_missing_columns(engine: Engine) -> list[str]:
 @contextmanager
 def session_scope() -> Iterator[Session]:
     get_engine()
+    ensure_schema()
     s = SessionLocal()
     try:
         yield s
@@ -102,6 +118,7 @@ def session_scope() -> Iterator[Session]:
 def get_db() -> Iterator[Session]:
     """FastAPI dependency."""
     get_engine()
+    ensure_schema()
     s = SessionLocal()
     try:
         yield s

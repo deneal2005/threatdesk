@@ -56,6 +56,33 @@ manual migration. `schema.sql` is the generated reference DDL (`python -m script
 This creates "Demo Org" with the brand "Acme Bank" and replays recorded investigations from the offline test fixtures.
 Every seeded finding shows the source **Demo fixture**, so it is never mistaken for a live result.
 
+## Deploy on Vercel + Supabase
+
+The repo deploys as-is with Vercel's FastAPI support (`app.py` is the entrypoint, `vercel.json` adds a daily cron).
+
+1. **Database**: create a Supabase project. Either add the Supabase integration to the Vercel project (it sets
+   `POSTGRES_URL`, which ThreatDesk reads when `DATABASE_URL` is unset) or set `DATABASE_URL` to the
+   **transaction pooler** string (port 6543). Tables are created on first start; `schema.sql` is the same schema
+   if you prefer to run it in the SQL editor first.
+2. **Vercel project**: import this GitHub repository (framework preset: FastAPI, no build settings needed).
+3. **Environment variables**: `SECRET_KEY` (long random string, required), `CRON_SECRET` (random string),
+   `PUBLIC_BASE_URL` (e.g. `https://threatdesk.vercel.app`), optional `SENTRY_DSN` and any API keys from the table
+   below.
+4. Deploy, open the URL, sign up.
+
+How it differs from a single long-running process (detected automatically on Vercel, or force with `SERVERLESS=true`):
+
+* No resident worker. A queued job runs inside the next signed-in status poll (the Investigate page and asset
+  lists poll every 2-3 s) or authenticated `GET /api/v1/jobs/{id}`, one job per poll. `/cron/tick` runs the
+  scheduler and then drains the queue for up to 270 s.
+* Vercel Cron calls `GET /cron/tick` with `Authorization: Bearer $CRON_SECRET` once a day (the Hobby limit). For
+  scheduled scans more often, use a Pro cron schedule, or set the repository secrets `THREATDESK_URL` and
+  `CRON_SECRET` to enable `.github/workflows/cron-tick.yml` (every 10 minutes).
+* Jobs stuck in `running` for longer than `JOB_TIMEOUT` + 60 s (their function instance stopped) are requeued.
+* Database connections are not pooled in-process (`NullPool`); the Supabase pooler does it.
+* Public scam lists are off by default (`SCAM_LISTS=on` downloads them into `/tmp` per instance, slowly).
+* `ENV` defaults to `prod` (Secure cookies, `SECRET_KEY` required).
+
 ## Tests
 
 ```bash
@@ -86,7 +113,8 @@ mandatory when `ENV=prod`). Each optional key turns on one more source. A missin
 | `SAFE_BROWSING_API_KEY`, `VT_API_KEY`, `URLHAUS_AUTH_KEY` | website reputation checks | those checks are "Not configured" |
 | `GEMINI_API_KEY` (`GEMINI_MODEL`) | AI read of each report (labelled; never decides alone, never counts as corroboration) | rules only |
 | `PHISHTANK_APP_KEY` | higher PhishTank rate limit | keyless PhishTank |
-| `CRON_SECRET` | `POST /cron/tick` for an external scheduler | endpoint answers 503 |
+| `CRON_SECRET` | `POST /cron/tick` (header `X-Cron-Secret`) or `GET` with `Authorization: Bearer` (Vercel Cron) | endpoint answers 503 |
+| `SENTRY_DSN` | error reporting to Sentry (no request bodies, cookies or user details; API keys stripped from URLs) | no error reporting |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | email alerts (recipients per organisation in Settings) | in-app and webhook alerts only |
 | `PUBLIC_BASE_URL` | absolute links in alerts | relative links |
 | `SCAM_LISTS`, `SCAM_LIST_EXCLUDE`, `CACHE_DIR` | public scam lists (OpenPhish is non-commercial only) | on by default |
@@ -138,6 +166,8 @@ Bluesky, Telegram public pages.
   `host:x.com`). Re-investigation updates the finding and appends evidence.
 
 ## Deployment
+
+For Vercel + Supabase see [Deploy on Vercel + Supabase](#deploy-on-vercel--supabase) above.
 
 `Dockerfile` (Python 3.11, non-root, `/health` healthcheck, single process) and `render.yaml` (Render web service with
 a managed `SECRET_KEY` and `CRON_SECRET`) are included. Set `DATABASE_URL` to a PostgreSQL instance.

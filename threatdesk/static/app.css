@@ -754,3 +754,35 @@ code.copy { display: inline-block; margin-top: 4px; padding: 4px 7px; background
 .breakdown { display: flex; flex-wrap: wrap; gap: var(--s2) var(--s4); margin: 0 0 var(--s3); }
 .breakdown > div { display: flex; gap: 6px; align-items: baseline; }
 .breakdown dt { color: var(--graphite); } .breakdown dd { margin: 0; font-weight: 600; }
+
+/* Phones ----------------------------------------------------------------------------------
+   Primary sections move to a bottom tab bar (thumb reach, nothing hidden off-screen); the top bar keeps
+   the wordmark, Alerts, Settings and Log out. Inputs are 16px so iOS does not zoom on focus, and every
+   control is at least 44px tall. */
+@media (max-width: 860px) {
+  .rail-nav { overflow: visible; padding: 8px 12px; padding-top: max(8px, env(safe-area-inset-top)); }
+  .rail-nav > .nav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0; padding: 4px 4px max(4px, env(safe-area-inset-bottom));
+    background: var(--sheet-2); border-top: 1px solid var(--rule); }
+  .rail-nav > .nav a, .rail-nav > .nav a[aria-current="page"] { flex-direction: column; gap: 3px; min-height: 52px; padding: 6px 2px;
+    justify-content: center; font-size: 11px; box-shadow: none; }
+  .rail-nav > .nav a .lbl, .rail-nav > .nav a:not([aria-current="page"]) .lbl { position: static; width: auto; height: auto;
+    overflow: hidden; clip: auto; text-overflow: ellipsis; max-width: 100%; }
+  .rail-nav > .nav a[aria-current="page"] { background: var(--sheet); color: var(--ink); }
+  .rail-nav > .nav .count { position: absolute; top: 3px; left: calc(50% + 6px); margin: 0; padding: 2px 5px; font-size: 10px; }
+  .nav-foot .nav a, .nav-foot button { min-width: 44px; min-height: 44px; justify-content: center; padding: 8px; }
+  .nav-foot .nav { display: flex; }
+  .main { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
+  .bulkbar { bottom: calc(72px + env(safe-area-inset-bottom)); }
+
+  input[type=text], input[type=email], input[type=password], input[type=number], input[type=url], input[type=search],
+  input:not([type]), select, textarea { font-size: 16px; min-height: 44px; }
+  .btn, .btn.sm, .menu > summary.btn { min-height: 44px; }
+  .chip { min-height: 32px; }
+  input[type=checkbox], input[type=radio] { width: 22px; height: 22px; }
+  .check { align-items: center; min-height: 44px; }
+  .filter-panel .check { flex-basis: 100%; min-width: 0; }
+  summary, summary.linklike { display: flex; align-items: center; min-height: 44px; }
+  input[type=file] { font-size: 16px; min-height: 44px; max-width: 100%; }
+}
+@media (max-width: 560px) { .section-head { align-items: flex-start; } }
