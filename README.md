@@ -10,7 +10,8 @@ that an analyst can triage, confirm and send to a registrar, host or platform as
 It never calls anything "safe". The lowest verdicts are **No strong signals** and **Insufficient data**. Every check
 reports `ran`, `not_possible` (with the reason) or `not_configured` (key missing). Architecture, data flow and the
 scoring model are in [ARCHITECTURE.md](ARCHITECTURE.md); test and requirement status in
-[VERIFICATION.md](VERIFICATION.md).
+[VERIFICATION.md](VERIFICATION.md). A screen-by-screen guide to every button is in
+[docs/PLATFORM_GUIDE.md](docs/PLATFORM_GUIDE.md).
 
 ## The three parts
 
