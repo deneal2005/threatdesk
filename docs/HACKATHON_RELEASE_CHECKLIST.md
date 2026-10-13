@@ -2,7 +2,7 @@
 
 **Project:** ThreatDesk (Digital Risk Protection Platform)  
 **Hackathon:** ByteXL HacXLerate 2026 — Challenge 3: *Social & App Monitoring*  
-**Branch:** `ml/threatdesk-training`  
+**Branch:** `main`  
 **Target:** Live Prototype & 3-Minute Jury Evaluation  
 
 ---
@@ -10,9 +10,9 @@
 ## 1. System Readiness Checklist
 
 ### Code & Environment
-- [x] **Git Safety:** Clean working tree on `ml/threatdesk-training` with backup branch `checkpoint/amrit-branch1-backup` and stash `stash@{0}`.
+- [x] **Git Safety:** Clean working tree on `main`; all work merged through pull requests.
 - [x] **Secrets Hygiene:** `.env` safely excluded from Git; no hardcoded credentials or API tokens tracked.
-- [x] **Test Suite:** **205 passed in ~19.5 seconds** (100% pass rate across 25 modules).
+- [x] **Test Suite:** **357 passed** (100% pass rate; run `python -m pytest -q`).
 - [x] **Database:** Local PostgreSQL running with all tables and idempotent asset migrations.
 - [x] **Complexity Limit:** All core Python modules remain under 300 lines.
 

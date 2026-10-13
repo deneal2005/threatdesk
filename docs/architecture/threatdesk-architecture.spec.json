@@ -1,0 +1,587 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "ThreatDesk Brand Protection Architecture",
+    "output": ".archify/architecture-threatdesk-20261012-184500/threatdesk-architecture.html",
+    "quality_profile": "showcase",
+    "repository": {
+      "url": "https://github.com/deneal2005/threatdesk.git",
+      "revision": "c3e41561222ba535f5694b87a22cf5b4bd4ca3fb",
+      "provider": "github",
+      "link_mode": "web"
+    }
+  },
+  "components": [
+    {
+      "id": "analysts",
+      "type": "external",
+      "label": "Security Analysts",
+      "sublabel": "Browser / ThreatDesk UI",
+      "pos": [
+        40,
+        50
+      ],
+      "size": [
+        140,
+        64
+      ]
+    },
+    {
+      "id": "web_ui",
+      "type": "frontend",
+      "label": "Web Portal",
+      "sublabel": "Jinja2 SSR / Strict CSP",
+      "tag": "CSRF Signed",
+      "pos": [
+        280,
+        50
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
+          "path": "threatdesk/web/present.py",
+          "line": 1,
+          "end_line": 50,
+          "label": "Presentation"
+        }
+      ]
+    },
+    {
+      "id": "fastapi_app",
+      "type": "backend",
+      "label": "FastAPI Core",
+      "sublabel": "Uvicorn :8000 / Router",
+      "tag": "Python 3.11+",
+      "pos": [
+        540,
+        50
+      ],
+      "size": [
+        160,
+        64
+      ],
+      "sources": [
+        {
+          "path": "threatdesk/main.py",
+          "line": 33,
+          "end_line": 68,
+          "label": "App Factory"
+        }
+      ]
+    },
+    {
+      "id": "brand_registry",
+      "type": "security",
+      "label": "Brand Profiles",
+      "sublabel": "Verified Official Assets",
+      "tag": "Never Flagged",
+      "pos": [
+        810,
+        50
+      ],
+      "size": [
+        160,
+        64
+      ],
+      "sources": [
+        {
+          "path": "threatdesk/brands.py",
+          "line": 1,
+          "end_line": 50,
+          "label": "Brand Context"
+        }
+      ]
+    },
+    {
+      "id": "public_intake",
+      "type": "external",
+      "label": "Public Reporting",
+      "sublabel": "Customer Phish Leads",
+      "pos": [
+        40,
+        200
+      ],
+      "size": [
+        140,
+        64
+      ],
+      "sources": [
+        {
+          "path": "threatdesk/intake.py",
+          "line": 1,
+          "end_line": 40,
+          "label": "Intake Normalizer"
+        }
+      ]
+    },
+    {
+      "id": "job_queue",
+      "type": "messagebus",
+      "label": "Job Queue Table",
+      "sublabel": "PostgreSQL jobs Queue",
+      "tag": "SKIP LOCKED",
+      "pos": [
+        280,
+        200
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
+          "path": "threatdesk/jobs.py",
+          "line": 1,
+          "end_line": 40,
+          "label": "Job Queue"
+        }
+      ]
+    },
+    {
+      "id": "worker",
+      "type": "backend",
+      "label": "In-Process Worker",
+      "sublabel": "Asyncio Semaphore (x3)",
+      "tag": "Single Process",
+      "pos": [
+        540,
+        200
+      ],
+      "size": [
+        160,
+        64
+      ],
+      "sources": [
+        {
+          "path": "threatdesk/worker.py",
+          "line": 22,
+          "end_line": 56,
+          "label": "Worker Loop"
+        }
+      ]
+    },
+    {
+      "id": "discovery_engine",
+      "type": "backend",
+      "label": "Discovery Engine",
+      "sublabel": "scan.py Orchestrator",
+      "tag": "100s Budget",
+      "pos": [
+        810,
+        200
+      ],
+      "size": [
+        160,
+        64
+      ],
+      "sources": [
+        {
+          "path": "threatdesk/discovery/scan.py",
+          "line": 19,
+          "end_line": 50,
+          "label": "Scan Runner"
+        }
+      ]
+    },
+    {
+      "id": "scheduler",
+      "type": "backend",
+      "label": "Scheduler Ticker",
+      "sublabel": "5-min Periodic Tick",
+      "pos": [
+        40,
+        350
+      ],
+      "size": [
+        140,
+        64
+      ],
+      "sources": [
+        {
+          "path": "threatdesk/worker.py",
+          "line": 34,
+          "end_line": 46,
+          "label": "Ticker Loop"
+        }
+      ]
+    },
+    {
+      "id": "check_collectors",
+      "type": "backend",
+      "label": "Check Collectors",
+      "sublabel": "Social / App / Web Checks",
+      "pos": [
+        280,
+        350
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
+          "path": "threatdesk/checks/base.py",
+          "line": 1,
+          "end_line": 35,
+          "label": "Check Runner"
+        }
+      ]
+    },
+    {
+      "id": "investigator",
+      "type": "backend",
+      "label": "Investigator Engine",
+      "sublabel": "investigator.py Pipeline",
+      "tag": "dedupe_key",
+      "pos": [
+        540,
+        350
+      ],
+      "size": [
+        160,
+        64
+      ],
+      "sources": [
+        {
+          "path": "threatdesk/investigator.py",
+          "line": 23,
+          "end_line": 65,
+          "label": "Investigator Pipeline"
+        }
+      ]
+    },
+    {
+      "id": "ext_sources",
+      "type": "external",
+      "label": "External Scan Feeds",
+      "sublabel": "Play / App Store / Bsky / YT",
+      "pos": [
+        810,
+        350
+      ],
+      "size": [
+        160,
+        64
+      ],
+      "sources": [
+        {
+          "path": "threatdesk/discovery/sources.py",
+          "line": 1,
+          "end_line": 50,
+          "label": "Feed Connectors"
+        }
+      ]
+    },
+    {
+      "id": "scam_cache",
+      "type": "database",
+      "label": "Disk Threat Cache",
+      "sublabel": "OpenPhish / PhishTank",
+      "pos": [
+        280,
+        500
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "sources": [
+        {
+          "path": "threatdesk/scamlists.py",
+          "line": 1,
+          "end_line": 45,
+          "label": "Scamlist Cache"
+        }
+      ]
+    },
+    {
+      "id": "scoring_rules",
+      "type": "security",
+      "label": "60 Scoring Rules",
+      "sublabel": "Category Point Engine",
+      "tag": "Identity Gate Cap",
+      "pos": [
+        540,
+        500
+      ],
+      "size": [
+        160,
+        64
+      ],
+      "sources": [
+        {
+          "path": "threatdesk/scoring.py",
+          "line": 15,
+          "end_line": 55,
+          "label": "Scoring Rules"
+        }
+      ]
+    },
+    {
+      "id": "lookalike_matching",
+      "type": "security",
+      "label": "Lookalike Engine",
+      "sublabel": "RapidFuzz / pHash / Leet",
+      "pos": [
+        810,
+        500
+      ],
+      "size": [
+        160,
+        64
+      ],
+      "sources": [
+        {
+          "path": "threatdesk/lookalike.py",
+          "line": 1,
+          "end_line": 50,
+          "label": "String Similarity"
+        }
+      ]
+    },
+    {
+      "id": "riskview",
+      "type": "security",
+      "label": "RiskView Classifier",
+      "sublabel": "Confidence & Verdict",
+      "pos": [
+        540,
+        650
+      ],
+      "size": [
+        160,
+        64
+      ],
+      "sources": [
+        {
+          "path": "threatdesk/riskview.py",
+          "line": 1,
+          "end_line": 50,
+          "label": "RiskView Classifier"
+        }
+      ]
+    },
+    {
+      "id": "takedowns",
+      "type": "external",
+      "label": "Takedowns & Alerts",
+      "sublabel": "Takedown Pkg / SMTP / Hook",
+      "pos": [
+        810,
+        650
+      ],
+      "size": [
+        160,
+        64
+      ],
+      "sources": [
+        {
+          "path": "threatdesk/takedown.py",
+          "line": 1,
+          "end_line": 45,
+          "label": "Takedown Notice"
+        }
+      ]
+    },
+    {
+      "id": "postgres_db",
+      "type": "database",
+      "label": "PostgreSQL 16",
+      "sublabel": "Findings & Audit Trail",
+      "tag": "SHA-256 Hashes",
+      "pos": [
+        540,
+        800
+      ],
+      "size": [
+        160,
+        64
+      ],
+      "sources": [
+        {
+          "path": "threatdesk/db.py",
+          "line": 1,
+          "end_line": 35,
+          "label": "DB Engine"
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "ThreatDesk Core Service (Single Process Architecture)",
+      "wraps": [
+        "web_ui",
+        "fastapi_app",
+        "brand_registry",
+        "job_queue",
+        "worker",
+        "scheduler",
+        "discovery_engine",
+        "check_collectors",
+        "investigator",
+        "scoring_rules",
+        "lookalike_matching",
+        "riskview"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "Persistence & Threat Feeds",
+      "wraps": [
+        "postgres_db",
+        "scam_cache"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "analysts-to-ui",
+      "from": "analysts",
+      "to": "web_ui",
+      "label": "HTTPS",
+      "variant": "emphasis"
+    },
+    {
+      "id": "ui-to-app",
+      "from": "web_ui",
+      "to": "fastapi_app",
+      "label": "Requests"
+    },
+    {
+      "id": "app-to-brand",
+      "from": "fastapi_app",
+      "to": "brand_registry",
+      "label": "Query Assets"
+    },
+    {
+      "id": "intake-to-queue",
+      "from": "public_intake",
+      "to": "job_queue",
+      "label": "Report Leads"
+    },
+    {
+      "id": "scheduler-to-queue",
+      "from": "scheduler",
+      "to": "job_queue",
+      "label": "5m Ticks"
+    },
+    {
+      "id": "queue-to-worker",
+      "from": "job_queue",
+      "to": "worker",
+      "label": "Atomic Claim"
+    },
+    {
+      "id": "worker-to-discovery",
+      "from": "worker",
+      "to": "discovery_engine",
+      "label": "Run Scan"
+    },
+    {
+      "id": "discovery-to-sources",
+      "from": "discovery_engine",
+      "to": "ext_sources",
+      "label": "Query APIs"
+    },
+    {
+      "id": "worker-to-investigator",
+      "from": "worker",
+      "to": "investigator",
+      "label": "Investigate"
+    },
+    {
+      "id": "investigator-to-collectors",
+      "from": "investigator",
+      "to": "check_collectors",
+      "label": "Run Checks"
+    },
+    {
+      "id": "collectors-to-cache",
+      "from": "check_collectors",
+      "to": "scam_cache",
+      "label": "Threat Lists"
+    },
+    {
+      "id": "collectors-to-scoring",
+      "from": "check_collectors",
+      "to": "scoring_rules",
+      "label": "Rule Match"
+    },
+    {
+      "id": "scoring-to-lookalike",
+      "from": "scoring_rules",
+      "to": "lookalike_matching",
+      "label": "Similarity"
+    },
+    {
+      "id": "scoring-to-riskview",
+      "from": "scoring_rules",
+      "to": "riskview",
+      "label": "Assess Score"
+    },
+    {
+      "id": "riskview-to-takedowns",
+      "from": "riskview",
+      "to": "takedowns",
+      "label": "Alert Notice"
+    },
+    {
+      "id": "riskview-to-db",
+      "from": "riskview",
+      "to": "postgres_db",
+      "label": "SQL Commit",
+      "variant": "emphasis"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Presentation & Intake",
+      "items": [
+        "FastAPI app with Jinja2 SSR, strict Content Security Policy, and signed CSRF tokens",
+        "Public intake page for customer scam submissions + analyst investigation portal"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Async Job Execution",
+      "items": [
+        "PostgreSQL `jobs` table queue with atomic row claims (FOR UPDATE SKIP LOCKED)",
+        "Single-process async worker with semaphore-capped concurrency (3 concurrent jobs) and 5-min cron ticker"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Discovery & Investigation",
+      "items": [
+        "Multi-source discovery (permutations, CT logs, Play Store, iTunes, Bluesky, YouTube, Brave/Google Search)",
+        "Deep collection pipeline running DNS, RDAP, TLS, Wayback, page fetch with SSRF guard, and scam list lookups"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Scoring, RiskView & Takedown",
+      "items": [
+        "60 scoring rules with 35-point identity-gate cap for accounts and apps without corroborating evidence",
+        "RiskView classification with multi-source confidence calculation",
+        "Audit trail with append-only SHA-256 hashed evidence, automated takedown packets, and SMTP/webhook alerting"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Official-Asset Exclusion & Look-alikes",
+      "items": [
+        "Brand profile holds official sites, social accounts, apps and publishers; each is verified (DNS TXT, meta tag, bio code, assetlinks.json)",
+        "Verified official assets and allow-listed items short-circuit to score 0, “Official/whitelisted asset”, before any rule runs",
+        "Look-alike engine flags character swaps, added words, spacing/hyphen changes and homoglyphs, with guards against over-flagging normal names",
+        "Apps: title similarity, icon pHash vs official logo, developer not on the official publisher list, description resemblance"
+      ]
+    }
+  ]
+}
